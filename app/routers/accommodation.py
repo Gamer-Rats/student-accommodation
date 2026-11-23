@@ -10,11 +10,10 @@ from pydantic import BaseModel, Field
 
 from app.services import housing_auth as auth
 from app.services import listings
+from app.services.location_rules import LOCATION_ERROR
 
 
-router = APIRouter(
-    tags=["student-accommodation"]
-)
+router = APIRouter(tags=["student-accommodation"])
 
 
 class LoginBody(BaseModel):
@@ -137,8 +136,14 @@ def browse(
     )
 
     if not result.get("ok"):
+        code = (
+            400
+            if result.get("error") == LOCATION_ERROR
+            else 403
+        )
+
         raise HTTPException(
-            status_code=403,
+            status_code=code,
             detail=result.get("error"),
         )
 
@@ -150,9 +155,7 @@ def admin_list(
     status: str | None = None,
     x_user_id: str | None = Header(default=None),
 ) -> dict[str, Any]:
-    actor = auth.get_user(
-        _actor_id(x_user_id)
-    )
+    actor = auth.get_user(_actor_id(x_user_id))
 
     if not actor or actor["role"] != "admin":
         raise HTTPException(
@@ -161,9 +164,7 @@ def admin_list(
         )
 
     return {
-        "listings": listings.list_all(
-            status=status
-        )
+        "listings": listings.list_all(status=status)
     }
 
 

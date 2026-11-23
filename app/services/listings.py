@@ -18,9 +18,12 @@ from app.services.lifecycle import (
     visible_to_students,
 )
 from app.services.student_eligibility import student_access_error
+from app.services.location_rules import (
+    ALLOWED_AREAS,
+    LOCATION_ERROR,
+    normalize_area,
+)
 
-
-ALLOWED_AREAS = {"st_augustine", "mount_hope"}
 
 ADMIN_ACTIONS = {
     "verify",
@@ -69,6 +72,15 @@ def submit_listing(
             "error": "landlords only",
         }
 
+    # Accept only supported accommodation locations.
+    normalized_area = normalize_area(area)
+
+    if normalized_area not in ALLOWED_AREAS:
+        return {
+            "ok": False,
+            "error": LOCATION_ERROR,
+        }
+
     if price <= 0:
         return {
             "ok": False,
@@ -79,7 +91,7 @@ def submit_listing(
         listing = Listing(
             landlord_id=landlord_id,
             title=title,
-            area=area,
+            area=normalized_area,
             price=price,
             amenities=amenities,
             contact_phone=contact_phone,
@@ -127,6 +139,7 @@ def transition(
                 "error": "listing not found",
             }
 
+        # Administrative actions are restricted to admins.
         if action in ADMIN_ACTIONS:
             if actor["role"] != "admin":
                 return {
@@ -134,6 +147,7 @@ def transition(
                     "error": "admin only",
                 }
 
+        # Landlords can manage only their own listings.
         elif action in LANDLORD_ACTIONS:
             if actor["role"] != "landlord":
                 return {
@@ -145,6 +159,19 @@ def transition(
                 return {
                     "ok": False,
                     "error": "not listing owner",
+                }
+
+        # Prevent older out-of-area listings from
+        # progressing into approved or active states.
+        if action in {
+            "verify",
+            "provisionally_accept",
+            "activate",
+        }:
+            if normalize_area(listing.area) not in ALLOWED_AREAS:
+                return {
+                    "ok": False,
+                    "error": LOCATION_ERROR,
                 }
 
         row = listing.model_dump()
@@ -179,7 +206,7 @@ def browse_for_students(
 ) -> dict[str, Any]:
     student = get_user(student_id)
 
-    # Verify eligibility before accessing listing data.
+    # Preserve student eligibility restrictions.
     error = student_access_error(student)
 
     if error:
@@ -187,6 +214,18 @@ def browse_for_students(
             "ok": False,
             "error": error,
         }
+
+    # Normalize the requested location filter.
+    normalized_filter = None
+
+    if area is not None:
+        normalized_filter = normalize_area(area)
+
+        if normalized_filter not in ALLOWED_AREAS:
+            return {
+                "ok": False,
+                "error": LOCATION_ERROR,
+            }
 
     with Session(engine) as session:
         rows = session.exec(
@@ -201,10 +240,20 @@ def browse_for_students(
     results = []
 
     for item in items:
+        # Only display available listings.
         if not visible_to_students(item):
             continue
 
-        if area and item["area"] != area:
+        # Hide out-of-area listings, including legacy data.
+        item_area = normalize_area(item["area"])
+
+        if item_area not in ALLOWED_AREAS:
+            continue
+
+        if (
+            normalized_filter is not None
+            and item_area != normalized_filter
+        ):
             continue
 
         if (
@@ -213,6 +262,7 @@ def browse_for_students(
         ):
             continue
 
+        # Amenity filtering is corrected in Task #24.
         if amenity and amenity not in item["amenities"]:
             continue
 
@@ -249,7 +299,6 @@ def send_message(
 ) -> dict[str, Any]:
     student = get_user(student_id)
 
-    # Apply the same student eligibility rule to messaging.
     error = student_access_error(student)
 
     if error:
