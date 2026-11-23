@@ -18,7 +18,21 @@ from app.services.lifecycle import (
     visible_to_students,
 )
 
+
 ALLOWED_AREAS = {"st_augustine", "mount_hope"}
+
+ADMIN_ACTIONS = {
+    "verify",
+    "provisionally_accept",
+    "reject",
+    "force_deactivate",
+}
+
+LANDLORD_ACTIONS = {
+    "activate",
+    "deactivate",
+    "resubmit",
+}
 
 
 def _now() -> str:
@@ -49,7 +63,10 @@ def submit_listing(
     user = get_user(landlord_id)
 
     if not user or user["role"] != "landlord":
-        return {"ok": False, "error": "landlords only"}
+        return {
+            "ok": False,
+            "error": "landlords only",
+        }
 
     if price <= 0:
         return {
@@ -109,39 +126,30 @@ def transition(
                 "error": "listing not found",
             }
 
+        # Administrators handle verification and enforcement.
+        if action in ADMIN_ACTIONS:
+            if actor["role"] != "admin":
+                return {
+                    "ok": False,
+                    "error": "admin only",
+                }
+
+        # Landlords manage only listings they own.
+        elif action in LANDLORD_ACTIONS:
+            if actor["role"] != "landlord":
+                return {
+                    "ok": False,
+                    "error": "landlord only",
+                }
+
+            if listing.landlord_id != actor_id:
+                return {
+                    "ok": False,
+                    "error": "not listing owner",
+                }
+
+        # Only process the state transition after authorization.
         row = listing.model_dump()
-
-        admin_actions = {
-            "verify",
-            "provisionally_accept",
-            "reject",
-            "force_deactivate",
-        }
-
-        landlord_actions = {
-            "activate",
-            "deactivate",
-            "resubmit",
-        }
-
-        if (
-            action in admin_actions
-            and actor["role"] != "admin"
-        ):
-            return {
-                "ok": False,
-                "error": "admin only",
-            }
-
-        if (
-            action in landlord_actions
-            and actor["role"] not in {"landlord", "admin"}
-        ):
-            return {
-                "ok": False,
-                "error": "landlord/admin only",
-            }
-
         result = apply_action(row, action)
 
         if not result.get("ok"):
