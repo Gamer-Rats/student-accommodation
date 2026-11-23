@@ -17,6 +17,7 @@ from app.services.lifecycle import (
     apply_action,
     visible_to_students,
 )
+from app.services.student_eligibility import student_access_error
 
 
 ALLOWED_AREAS = {"st_augustine", "mount_hope"}
@@ -126,7 +127,6 @@ def transition(
                 "error": "listing not found",
             }
 
-        # Administrators handle verification and enforcement.
         if action in ADMIN_ACTIONS:
             if actor["role"] != "admin":
                 return {
@@ -134,7 +134,6 @@ def transition(
                     "error": "admin only",
                 }
 
-        # Landlords manage only listings they own.
         elif action in LANDLORD_ACTIONS:
             if actor["role"] != "landlord":
                 return {
@@ -148,7 +147,6 @@ def transition(
                     "error": "not listing owner",
                 }
 
-        # Only process the state transition after authorization.
         row = listing.model_dump()
         result = apply_action(row, action)
 
@@ -181,10 +179,13 @@ def browse_for_students(
 ) -> dict[str, Any]:
     student = get_user(student_id)
 
-    if not student or student["role"] != "student":
+    # Verify eligibility before accessing listing data.
+    error = student_access_error(student)
+
+    if error:
         return {
             "ok": False,
-            "error": "students only",
+            "error": error,
         }
 
     with Session(engine) as session:
@@ -248,10 +249,13 @@ def send_message(
 ) -> dict[str, Any]:
     student = get_user(student_id)
 
-    if not student or student["role"] != "student":
+    # Apply the same student eligibility rule to messaging.
+    error = student_access_error(student)
+
+    if error:
         return {
             "ok": False,
-            "error": "students only",
+            "error": error,
         }
 
     if not body.strip():

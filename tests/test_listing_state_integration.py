@@ -1,4 +1,3 @@
-
 import pytest
 
 from app.models.listing import Listing
@@ -23,7 +22,7 @@ def setup_listings(test_session, monkeypatch):
         1: {"id": 1, "role": "admin"},
         2: {"id": 2, "role": "landlord"},
         3: {"id": 3, "role": "landlord"},
-        4: {"id": 4, "role": "student"},
+        4: {"id": 4, "role": "student", "student_id": "202012345", "provisional": 0},
     }
 
     monkeypatch.setattr(
