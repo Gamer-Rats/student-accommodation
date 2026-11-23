@@ -1,3 +1,6 @@
+
+"""Listing CRUD, browsing, messaging, and lifecycle transitions."""
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -50,6 +53,17 @@ def _parse_amenities(raw: str) -> list[str]:
         for item in (raw or "").split(",")
         if item.strip()
     ]
+
+
+def _available_to_students(
+    listing: dict[str, Any],
+) -> bool:
+    """Check availability using lifecycle and location rules."""
+
+    return (
+        visible_to_students(listing)
+        and normalize_area(listing.get("area")) in ALLOWED_AREAS
+    )
 
 
 def submit_listing(
@@ -219,7 +233,6 @@ def browse_for_students(
                 "error": LOCATION_ERROR,
             }
 
-    # Normalize the requested amenity once.
     requested_amenity = (
         amenity.strip().casefold()
         if amenity is not None
@@ -239,13 +252,11 @@ def browse_for_students(
     results = []
 
     for item in items:
-        if not visible_to_students(item):
+        # Browsing and messaging use the same availability rules.
+        if not _available_to_students(item):
             continue
 
         item_area = normalize_area(item["area"])
-
-        if item_area not in ALLOWED_AREAS:
-            continue
 
         if (
             normalized_filter is not None
@@ -259,7 +270,6 @@ def browse_for_students(
         ):
             continue
 
-        # Match complete, normalized amenity names.
         if requested_amenity:
             listing_amenities = _parse_amenities(
                 item["amenities"]
@@ -301,6 +311,7 @@ def send_message(
 ) -> dict[str, Any]:
     student = get_user(student_id)
 
+    # Only eligible students may send messages.
     error = student_access_error(student)
 
     if error:
@@ -322,6 +333,15 @@ def send_message(
             return {
                 "ok": False,
                 "error": "listing not found",
+            }
+
+        # Prevent messaging about unavailable listings.
+        if not _available_to_students(
+            listing.model_dump()
+        ):
+            return {
+                "ok": False,
+                "error": "listing not available",
             }
 
         message = Message(
