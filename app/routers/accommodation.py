@@ -1,3 +1,4 @@
+
 """Student-accommodation scenario JSON API (OpenAPI /docs)."""
 
 from __future__ import annotations
@@ -10,7 +11,10 @@ from pydantic import BaseModel, Field
 from app.services import housing_auth as auth
 from app.services import listings
 
-router = APIRouter(tags=["student-accommodation"])
+
+router = APIRouter(
+    tags=["student-accommodation"]
+)
 
 
 class LoginBody(BaseModel):
@@ -30,7 +34,10 @@ class ListingBody(BaseModel):
 
 class TransitionBody(BaseModel):
     action: str = Field(
-        description="verify | reject | activate | deactivate | resubmit"
+        description=(
+            "verify | provisionally_accept | reject | "
+            "activate | deactivate | force_deactivate | resubmit"
+        )
     )
 
 
@@ -41,24 +48,38 @@ class MessageBody(BaseModel):
 
 def _actor_id(x_user_id: str | None) -> int:
     if not x_user_id:
-        raise HTTPException(status_code=401, detail="X-User-Id header required")
+        raise HTTPException(
+            status_code=401,
+            detail="X-User-Id header required",
+        )
+
     try:
         return int(x_user_id)
+
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail="X-User-Id must be int") from exc
+        raise HTTPException(
+            status_code=400,
+            detail="X-User-Id must be int",
+        ) from exc
 
 
 @router.post("/auth/login")
 def login(body: LoginBody) -> dict[str, Any]:
     user = auth.login(body.email, body.password)
+
     if not user:
-        raise HTTPException(status_code=401, detail="invalid credentials")
+        raise HTTPException(
+            status_code=401,
+            detail="invalid credentials",
+        )
+
     return {"user": user}
 
 
 @router.post("/landlord/listings")
 def submit(
-    body: ListingBody, x_user_id: str | None = Header(default=None)
+    body: ListingBody,
+    x_user_id: str | None = Header(default=None),
 ) -> dict[str, Any]:
     result = listings.submit_listing(
         _actor_id(x_user_id),
@@ -70,8 +91,13 @@ def submit(
         contact_email=body.contact_email,
         photos=body.photos,
     )
+
     if not result.get("ok"):
-        raise HTTPException(status_code=400, detail=result.get("error"))
+        raise HTTPException(
+            status_code=400,
+            detail=result.get("error"),
+        )
+
     return result
 
 
@@ -81,9 +107,18 @@ def transition(
     body: TransitionBody,
     x_user_id: str | None = Header(default=None),
 ) -> dict[str, Any]:
-    result = listings.transition(_actor_id(x_user_id), listing_id, body.action)
+    result = listings.transition(
+        _actor_id(x_user_id),
+        listing_id,
+        body.action,
+    )
+
     if not result.get("ok"):
-        raise HTTPException(status_code=400, detail=result.get("error"))
+        raise HTTPException(
+            status_code=400,
+            detail=result.get("error"),
+        )
+
     return result
 
 
@@ -95,30 +130,58 @@ def browse(
     x_user_id: str | None = Header(default=None),
 ) -> dict[str, Any]:
     result = listings.browse_for_students(
-        _actor_id(x_user_id), area=area, max_price=max_price, amenity=amenity
+        _actor_id(x_user_id),
+        area=area,
+        max_price=max_price,
+        amenity=amenity,
     )
+
     if not result.get("ok"):
-        raise HTTPException(status_code=403, detail=result.get("error"))
+        raise HTTPException(
+            status_code=403,
+            detail=result.get("error"),
+        )
+
     return result
 
 
 @router.get("/admin/listings")
 def admin_list(
-    status: str | None = None, x_user_id: str | None = Header(default=None)
+    status: str | None = None,
+    x_user_id: str | None = Header(default=None),
 ) -> dict[str, Any]:
-    actor = auth.get_user(_actor_id(x_user_id))
+    actor = auth.get_user(
+        _actor_id(x_user_id)
+    )
+
     if not actor or actor["role"] != "admin":
-        raise HTTPException(status_code=403, detail="admin only")
-    return {"listings": listings.list_all(status=status)}
+        raise HTTPException(
+            status_code=403,
+            detail="admin only",
+        )
+
+    return {
+        "listings": listings.list_all(
+            status=status
+        )
+    }
 
 
 @router.post("/student/messages")
 def message(
-    body: MessageBody, x_user_id: str | None = Header(default=None)
+    body: MessageBody,
+    x_user_id: str | None = Header(default=None),
 ) -> dict[str, Any]:
     result = listings.send_message(
-        _actor_id(x_user_id), body.listing_id, body.body
+        _actor_id(x_user_id),
+        body.listing_id,
+        body.body,
     )
+
     if not result.get("ok"):
-        raise HTTPException(status_code=400, detail=result.get("error"))
+        raise HTTPException(
+            status_code=400,
+            detail=result.get("error"),
+        )
+
     return result
