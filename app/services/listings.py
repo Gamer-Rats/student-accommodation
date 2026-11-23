@@ -1,6 +1,3 @@
-
-"""Listing CRUD, browse filters, messaging, and lifecycle transitions."""
-
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -46,10 +43,12 @@ def _now() -> str:
 
 
 def _parse_amenities(raw: str) -> list[str]:
+    """Return normalized, individual amenity names."""
+
     return [
-        a.strip().lower()
-        for a in (raw or "").split(",")
-        if a.strip()
+        item.strip().casefold()
+        for item in (raw or "").split(",")
+        if item.strip()
     ]
 
 
@@ -72,7 +71,6 @@ def submit_listing(
             "error": "landlords only",
         }
 
-    # Accept only supported accommodation locations.
     normalized_area = normalize_area(area)
 
     if normalized_area not in ALLOWED_AREAS:
@@ -139,7 +137,6 @@ def transition(
                 "error": "listing not found",
             }
 
-        # Administrative actions are restricted to admins.
         if action in ADMIN_ACTIONS:
             if actor["role"] != "admin":
                 return {
@@ -147,7 +144,6 @@ def transition(
                     "error": "admin only",
                 }
 
-        # Landlords can manage only their own listings.
         elif action in LANDLORD_ACTIONS:
             if actor["role"] != "landlord":
                 return {
@@ -161,8 +157,6 @@ def transition(
                     "error": "not listing owner",
                 }
 
-        # Prevent older out-of-area listings from
-        # progressing into approved or active states.
         if action in {
             "verify",
             "provisionally_accept",
@@ -206,7 +200,6 @@ def browse_for_students(
 ) -> dict[str, Any]:
     student = get_user(student_id)
 
-    # Preserve student eligibility restrictions.
     error = student_access_error(student)
 
     if error:
@@ -215,7 +208,6 @@ def browse_for_students(
             "error": error,
         }
 
-    # Normalize the requested location filter.
     normalized_filter = None
 
     if area is not None:
@@ -226,6 +218,13 @@ def browse_for_students(
                 "ok": False,
                 "error": LOCATION_ERROR,
             }
+
+    # Normalize the requested amenity once.
+    requested_amenity = (
+        amenity.strip().casefold()
+        if amenity is not None
+        else ""
+    )
 
     with Session(engine) as session:
         rows = session.exec(
@@ -240,11 +239,9 @@ def browse_for_students(
     results = []
 
     for item in items:
-        # Only display available listings.
         if not visible_to_students(item):
             continue
 
-        # Hide out-of-area listings, including legacy data.
         item_area = normalize_area(item["area"])
 
         if item_area not in ALLOWED_AREAS:
@@ -262,9 +259,14 @@ def browse_for_students(
         ):
             continue
 
-        # Amenity filtering is corrected in Task #24.
-        if amenity and amenity not in item["amenities"]:
-            continue
+        # Match complete, normalized amenity names.
+        if requested_amenity:
+            listing_amenities = _parse_amenities(
+                item["amenities"]
+            )
+
+            if requested_amenity not in listing_amenities:
+                continue
 
         results.append(item)
 
