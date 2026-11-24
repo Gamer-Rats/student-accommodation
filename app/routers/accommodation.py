@@ -3,10 +3,13 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, Field
+
+from app.dependencies.auth import get_current_user
+from app.dependencies.session import SessionDep
 
 from app.services import housing_auth as auth
 from app.services import listings
@@ -60,6 +63,16 @@ def _actor_id(x_user_id: str | None) -> int:
             status_code=400,
             detail="X-User-Id must be int",
         ) from exc
+
+
+async def _browser_user_id(
+    request: Request,
+    db: SessionDep,
+) -> int | None:
+    if "access_token" in request.cookies:
+        user = await get_current_user(request, db)
+        return user.id
+    return None
 
 
 @router.post("/auth/login")
@@ -127,9 +140,11 @@ def browse(
     max_price: int | None = None,
     amenity: str | None = None,
     x_user_id: str | None = Header(default=None),
+    browser_user_id: Annotated[int | None, Depends(_browser_user_id)] = None,
 ) -> dict[str, Any]:
+    actor_id = browser_user_id if browser_user_id is not None else _actor_id(x_user_id)
     result = listings.browse_for_students(
-        _actor_id(x_user_id),
+        actor_id,
         area=area,
         max_price=max_price,
         amenity=amenity,
@@ -154,8 +169,10 @@ def browse(
 def admin_list(
     status: str | None = None,
     x_user_id: str | None = Header(default=None),
+    browser_user_id: Annotated[int | None, Depends(_browser_user_id)] = None,
 ) -> dict[str, Any]:
-    actor = auth.get_user(_actor_id(x_user_id))
+    actor_id = browser_user_id if browser_user_id is not None else _actor_id(x_user_id)
+    actor = auth.get_user(actor_id)
 
     if not actor or actor["role"] != "admin":
         raise HTTPException(

@@ -5,10 +5,11 @@
   <header class="app-topbar">
     <a class="brand-wordmark" href="{{ url_for('index_view') }}">NestLink</a>
     <nav class="app-topnav" aria-label="App">
-      <a class="{{ 'is-active' if request.url.path.startswith('/app') }}" href="{{ url_for('user_home_view') }}">Home</a>
-      <a href="/docs">API docs</a>
+      {% set home_route = 'admin_home_view' if user.role == 'admin' else 'user_home_view' %}
+      <a class="{{ 'is-active' if request.scope.get('endpoint').__name__ == home_route }}" href="{{ url_for(home_route) }}">Home</a>
+      <a href="{{ url_for('swagger_ui_html') }}">API docs</a>
       <a href="{{ url_for('logout') }}">Sign out</a>
-      <span class="app-user">{{ user.username }}</span>
+      <span class="app-user">{{ user.username|e }}</span>
     </nav>
   </header>
   <main class="app-main">
