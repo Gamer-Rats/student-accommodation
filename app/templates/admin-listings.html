@@ -1,0 +1,42 @@
+{% extends "authenticated-base.html" %}
+{% block title %}All listings · NestLink{% endblock %}
+
+{% block subpage_content %}
+<h1>All listings</h1>
+<form method="get" action="{{ url_for('admin_listings_view') }}" class="d-flex flex-wrap align-items-center gap-2 mb-3">
+  <label for="status">Status</label>
+  <select class="form-select w-auto" id="status" name="status">
+    <option value="">All statuses</option>
+    {% for state in states %}
+      <option value="{{ state|e }}"{% if state == selected_status %} selected{% endif %}>{{ state|capitalize|e }}</option>
+    {% endfor %}
+  </select>
+  <button class="btn btn-primary" type="submit">Filter</button>
+</form>
+{% if listings %}
+  <div class="table-responsive">
+    <table class="table align-middle">
+      <thead>
+        <tr><th scope="col">ID</th><th scope="col">Listing</th><th scope="col">Area</th><th scope="col">Price</th><th scope="col">Status</th></tr>
+      </thead>
+      <tbody>
+        {% for listing in listings %}
+          <tr>
+            <td>{{ listing.id }}</td>
+            <td>{{ listing.title|e }}</td>
+            <td>{{ listing.area|replace('_', ' ')|title|e }}</td>
+            <td>TT${{ "{:,}".format(listing.price) }}</td>
+            <td>
+              {{ listing.status|capitalize|e }}
+              {% if listing.admin_hold %}<div>On hold</div>{% endif %}
+              {% if listing.requires_reverification %}<div>Requires reverification</div>{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% else %}
+  <p>No listings match this filter.</p>
+{% endif %}
+{% endblock %}

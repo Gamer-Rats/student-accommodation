@@ -1,0 +1,48 @@
+{% extends "authenticated-base.html" %}
+{% block title %}Student listings · NestLink{% endblock %}
+
+{% block subpage_content %}
+<h1>Student listings</h1>
+<form method="get" action="{{ url_for('student_listings_view') }}" class="d-flex flex-wrap align-items-end gap-2 mb-3">
+  <div>
+    <label class="form-label" for="area">Area</label>
+    <select class="form-select" id="area" name="area">
+      <option value="">All areas</option>
+      {% for area in areas %}
+        <option value="{{ area|e }}"{% if area == selected_area %} selected{% endif %}>{{ area|replace('_', ' ')|title|e }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="form-label" for="max_price">Maximum price (TT$)</label>
+    <input class="form-control" id="max_price" name="max_price" type="number" min="0" value="{{ max_price|e }}">
+  </div>
+  <div>
+    <label class="form-label" for="amenity">Amenity</label>
+    <input class="form-control" id="amenity" name="amenity" value="{{ amenity|e }}">
+  </div>
+  <button class="btn btn-primary" type="submit">Filter</button>
+</form>
+{% if error %}
+  <p class="alert alert-warning">{{ error|e }}</p>
+{% else %}
+  <div class="row g-3 mt-2">
+    {% for listing in listings %}
+      <div class="col-12 col-md-6">
+        <article class="card h-100">
+          <div class="card-body">
+            <h2 class="h5 card-title">{{ listing.title|e }}</h2>
+            <p>{{ listing.area|replace('_', ' ')|title|e }} · TT${{ "{:,}".format(listing.price) }}</p>
+            {% if listing.amenities %}
+              <p>{{ listing.amenities|replace(',', ', ')|e }}</p>
+            {% endif %}
+            <p class="mb-0">{{ listing.contact_phone|e }}<br>{{ listing.contact_email|e }}</p>
+          </div>
+        </article>
+      </div>
+    {% else %}
+      <p>No student listings are available right now.</p>
+    {% endfor %}
+  </div>
+{% endif %}
+{% endblock %}

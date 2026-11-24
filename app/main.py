@@ -2,7 +2,8 @@ import logging
 from contextlib import asynccontextmanager
 
 import uvicorn
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.exception_handlers import http_exception_handler
 from starlette.middleware import Middleware
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import RedirectResponse
@@ -65,10 +66,13 @@ async def health():
 
 
 @app.exception_handler(status.HTTP_401_UNAUTHORIZED)
-async def unauthorized_redirect_handler(request: Request, exc: Exception):
+async def unauthorized_redirect_handler(request: Request, exc: HTTPException):
+    if request.url.path.removeprefix(request.scope.get("root_path", "")).startswith("/api/"):
+        return await http_exception_handler(request, exc)
     return templates.TemplateResponse(
         request=request,
         name="401.html",
+        status_code=exc.status_code,
     )
 
 
