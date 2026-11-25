@@ -44,6 +44,7 @@ from . import (
     landlord_submit,
     landlord_lifecycle,
     student_messaging,
+    landlord_inbox,
     users,
     logout,
     server_config,

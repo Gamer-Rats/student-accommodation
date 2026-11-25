@@ -30,6 +30,7 @@
 
       <!-- Student navigation -->
       {% if user.role == 'student' %}
+
         <a
           href="{{ url_for('student_listings_view') }}"
           class="{{ 'is-active' if current_page == 'student_listings_view' else '' }}"
@@ -37,12 +38,12 @@
         >
           Browse listings
         </a>
+
       {% endif %}
 
       <!-- Landlord navigation -->
-      
-      <!-- Landlord navigation -->
       {% if user.role == 'landlord' %}
+
         <a
           href="{{ url_for('landlord_listings_view') }}"
           class="{{ 'is-active' if current_page == 'landlord_listings_view' else '' }}"
@@ -52,17 +53,26 @@
         </a>
 
         <a
+          href="{{ url_for('landlord_inbox_view') }}"
+          class="{{ 'is-active' if current_page == 'landlord_inbox_view' else '' }}"
+          {% if current_page == 'landlord_inbox_view' %}aria-current="page"{% endif %}
+        >
+          Inbox
+        </a>
+
+        <a
           href="{{ url_for('landlord_rejections_view') }}"
           class="{{ 'is-active' if current_page == 'landlord_rejections_view' else '' }}"
           {% if current_page == 'landlord_rejections_view' %}aria-current="page"{% endif %}
         >
           Rejected listings
         </a>
-      {% endif %}
 
+      {% endif %}
 
       <!-- Administrator navigation -->
       {% if user.role == 'admin' %}
+
         <a
           href="{{ url_for('admin_listings_view') }}"
           class="{{ 'is-active' if current_page == 'admin_listings_view' else '' }}"
@@ -70,6 +80,7 @@
         >
           All listings
         </a>
+
       {% endif %}
 
       <!-- Shared navigation links -->
@@ -91,12 +102,14 @@
   <main class="app-main">
 
     {% for message in get_flashed_messages(request) %}
+
       <div
         class="alert alert-{{ message.type|e }}"
         role="alert"
       >
         {{ message.message|e }}
       </div>
+
     {% endfor %}
 
     {% block subpage_content %}{% endblock %}
