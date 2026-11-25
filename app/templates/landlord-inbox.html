@@ -1,0 +1,169 @@
+
+{% extends "authenticated-base.html" %}
+
+{% block title %}Landlord Inbox · NestLink{% endblock %}
+
+{% block subpage_content %}
+
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+
+  <div>
+    <h1>Landlord Inbox</h1>
+
+    <p class="text-muted mb-0">
+      View inquiries from students interested in your
+      accommodation listings.
+    </p>
+  </div>
+
+  <a
+    class="btn btn-outline-primary"
+    href="{{ url_for('landlord_listings_view') }}"
+  >
+    Back to My Listings
+  </a>
+
+</div>
+
+<!-- Inbox summary -->
+<div class="row g-3 mb-4">
+
+  <div class="col-12 col-md-4">
+
+    <div class="card h-100">
+      <div class="card-body">
+
+        <div class="text-muted small">
+          Total Messages
+        </div>
+
+        <strong
+          class="h3 d-block mb-0"
+          id="message-count"
+        >
+          {{ message_count }}
+        </strong>
+
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- Messages -->
+<div class="d-flex align-items-center justify-content-between mb-3">
+
+  <h2 class="h4 mb-0">
+    Student Inquiries
+  </h2>
+
+</div>
+
+{% if messages %}
+
+  <div class="row g-3">
+
+    {% for message in messages %}
+
+      <div class="col-12">
+
+        <article class="card">
+
+          <div class="card-body">
+
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+
+              <div>
+
+                <h3 class="h5 mb-1">
+                  {{ message.student_name|e }}
+                </h3>
+
+                <p class="text-muted small mb-0">
+                  @{{ message.student_username|e }}
+                </p>
+
+              </div>
+
+              <span class="badge bg-primary">
+                Student Inquiry
+              </span>
+
+            </div>
+
+            <div class="mb-3">
+
+              <p class="mb-1">
+                <strong>Regarding:</strong>
+                {{ message.listing_title|e }}
+              </p>
+
+              <p class="text-muted small mb-0">
+                Listing ID: {{ message.listing_id }}
+              </p>
+
+            </div>
+
+            <div class="border rounded p-3 mb-3 bg-light">
+
+              <p
+                class="mb-0"
+                style="white-space: pre-wrap; overflow-wrap: anywhere;"
+              >{{ message.body|e }}</p>
+
+            </div>
+
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+
+              <small class="text-muted">
+                <strong>Received:</strong>
+                {{ message.created_at|replace('T', ' ')|e }}
+              </small>
+
+              <small class="text-muted">
+                Message #{{ message.id }}
+              </small>
+
+            </div>
+
+          </div>
+
+        </article>
+
+      </div>
+
+    {% endfor %}
+
+  </div>
+
+{% else %}
+
+  <div class="card">
+
+    <div class="card-body text-center py-5">
+
+      <h2 class="h5">
+        No Messages Yet
+      </h2>
+
+      <p class="text-muted mb-3">
+        You have not received any student inquiries.
+        Messages sent about your accommodation listings
+        will appear here.
+      </p>
+
+      <a
+        class="btn btn-primary"
+        href="{{ url_for('landlord_listings_view') }}"
+      >
+        View My Listings
+      </a>
+
+    </div>
+
+  </div>
+
+{% endif %}
+
+{% endblock %}
