@@ -1,16 +1,34 @@
-from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi import Request, status, Form
+
+"""User directory API restricted to campus administrators."""
+
+from fastapi import HTTPException, status
+
 from app.dependencies import SessionDep
-from . import api_router
-from app.services.user_service import UserService
+from app.dependencies.auth import AuthDep
 from app.repositories.user import UserRepository
-from app.utilities.flash import flash
 from app.schemas import UserResponse
+from app.services.user_service import UserService
+
+from . import api_router
 
 
-# API endpoint for listing users
 @api_router.get("/users", response_model=list[UserResponse])
-async def list_users(request: Request, db: SessionDep):
+async def list_users(
+    db: SessionDep,
+    current_user: AuthDep,
+):
+    """
+    Return the user directory to authenticated
+    campus administrators only.
+    """
+
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrators only",
+        )
+
     user_repo = UserRepository(db)
     user_service = UserService(user_repo)
+
     return user_service.get_all_users()
