@@ -1,0 +1,208 @@
+
+{% extends "authenticated-base.html" %}
+
+{% block title %}Submit Listing · NestLink{% endblock %}
+
+{% block subpage_content %}
+
+<div class="mb-4">
+  <h1>Submit Accommodation Listing</h1>
+
+  <p class="text-muted">
+    Enter your accommodation details below.
+    Your listing will be submitted for administrator
+    review before it can become available to students.
+  </p>
+
+  <a
+    class="btn btn-outline-secondary"
+    href="{{ url_for('landlord_listings_view') }}"
+  >
+    Back to My Listings
+  </a>
+</div>
+
+<div class="card mb-4">
+  <div class="card-body">
+
+    <form
+      method="post"
+      action="{{ url_for('landlord_submit_action') }}"
+    >
+
+      <input
+        type="hidden"
+        name="csrf_token"
+        value="{{ csrf_token|e }}"
+      >
+
+      <!-- Listing title -->
+      <div class="mb-3">
+        <label for="title" class="form-label">
+          Listing Title
+        </label>
+
+        <input
+          type="text"
+          class="form-control"
+          id="title"
+          name="title"
+          placeholder="e.g. Furnished Apartment Near UWI"
+          maxlength="200"
+          required
+        >
+      </div>
+
+      <!-- Accommodation location -->
+      <div class="mb-3">
+        <label for="area" class="form-label">
+          Accommodation Location
+        </label>
+
+        <select
+          class="form-select"
+          id="area"
+          name="area"
+          required
+        >
+          <option value="" selected disabled>
+            Select a location
+          </option>
+
+          {% for area in areas %}
+            <option value="{{ area|e }}">
+              {{ area|replace('_', ' ')|title|e }}
+            </option>
+          {% endfor %}
+        </select>
+
+        <div class="form-text">
+          Listings are currently restricted to
+          St. Augustine and Mount Hope.
+        </div>
+      </div>
+
+      <!-- Monthly rent -->
+      <div class="mb-3">
+        <label for="price" class="form-label">
+          Monthly Rent (TT$)
+        </label>
+
+        <input
+          type="number"
+          class="form-control"
+          id="price"
+          name="price"
+          min="1"
+          step="1"
+          placeholder="e.g. 2500"
+          required
+        >
+      </div>
+
+      <!-- Amenities -->
+      <div class="mb-3">
+        <label for="amenities" class="form-label">
+          Amenities
+        </label>
+
+        <input
+          type="text"
+          class="form-control"
+          id="amenities"
+          name="amenities"
+          placeholder="e.g. wifi, parking, AC, furnished"
+        >
+
+        <div class="form-text">
+          Separate amenities using commas.
+        </div>
+      </div>
+
+      <!-- Contact phone -->
+      <div class="mb-3">
+        <label for="contact_phone" class="form-label">
+          Contact Phone Number
+        </label>
+
+        <input
+          type="tel"
+          class="form-control"
+          id="contact_phone"
+          name="contact_phone"
+          placeholder="e.g. 868-555-1234"
+          required
+        >
+      </div>
+
+      <!-- Contact email -->
+      <div class="mb-3">
+        <label for="contact_email" class="form-label">
+          Contact Email Address
+        </label>
+
+        <input
+          type="email"
+          class="form-control"
+          id="contact_email"
+          name="contact_email"
+          placeholder="e.g. landlord@example.com"
+          required
+        >
+      </div>
+
+      <!-- Photos -->
+      <div class="mb-3">
+        <label for="photos" class="form-label">
+          Accommodation Photo URLs
+        </label>
+
+        <textarea
+          class="form-control"
+          id="photos"
+          name="photos"
+          rows="3"
+          placeholder="Paste photo URLs separated by commas"
+        ></textarea>
+
+        <div class="form-text">
+          Photo URLs are optional.
+          Direct image uploading is not supported yet.
+        </div>
+      </div>
+
+      <!-- Submission information -->
+      <div class="alert alert-info" role="status">
+        <strong>Important:</strong>
+        New listings are submitted with
+        <strong>Pending</strong> status.
+
+        A campus administrator must review and approve
+        your listing before you can activate it.
+      </div>
+
+      <!-- Form actions -->
+      <div class="d-flex flex-wrap gap-2">
+
+        <button
+          type="submit"
+          class="btn btn-primary"
+        >
+          Submit Listing
+        </button>
+
+        <a
+          href="{{ url_for('landlord_listings_view') }}"
+          class="btn btn-outline-secondary"
+        >
+          Cancel
+        </a>
+
+      </div>
+
+    </form>
+
+  </div>
+</div>
+
+{% endblock %}
