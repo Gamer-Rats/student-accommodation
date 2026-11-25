@@ -43,6 +43,7 @@ from . import (
     landlord_edit,
     landlord_submit,
     landlord_lifecycle,
+    student_messaging,
     users,
     logout,
     server_config,

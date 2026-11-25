@@ -15,6 +15,7 @@ from app.services.location_rules import (
     LOCATION_ERROR,
 )
 from .landlord_lifecycle import get_lifecycle_csrf_token
+from .student_messaging import get_message_csrf_token
 from . import router, templates
 
 
@@ -33,7 +34,10 @@ async def user_home_view(
     )
 
 
-@router.get("/app/listings", response_class=HTMLResponse)
+@router.get(
+    "/app/listings",
+    response_class=HTMLResponse,
+)
 def student_listings_view(
     request: Request,
     user: AuthDep,
@@ -49,6 +53,7 @@ def student_listings_view(
             "ok": False,
             "error": "Maximum price must be a whole number.",
         }
+
         status_code = 400
 
     else:
@@ -60,7 +65,9 @@ def student_listings_view(
         )
 
         status_code = 200 if result["ok"] else (
-            400 if result.get("error") == LOCATION_ERROR else 403
+            400
+            if result.get("error") == LOCATION_ERROR
+            else 403
         )
 
     return templates.TemplateResponse(
@@ -80,7 +87,9 @@ def student_listings_view(
 
 
 @router.get("/app/landlord/listings/data")
-def landlord_listings_data(user: AuthDep):
+def landlord_listings_data(
+    user: AuthDep,
+):
     """Authenticated listing data for the landlord dashboard."""
 
     if user.role != "landlord":
@@ -108,7 +117,7 @@ def landlord_rejections_view(
     request: Request,
     user: AuthDep,
 ):
-    """Show rejected listings belonging to the logged-in landlord."""
+    """Show rejected listings belonging to the landlord."""
 
     if user.role != "landlord":
         raise HTTPException(
@@ -148,7 +157,7 @@ def landlord_listings_view(
     request: Request,
     user: AuthDep,
 ):
-    """Display all listings owned by the authenticated landlord."""
+    """Display listings owned by the authenticated landlord."""
 
     if user.role != "landlord":
         raise HTTPException(
@@ -203,10 +212,16 @@ def student_listing_details_view(
 ):
     """Display details of a student-accessible listing."""
 
-    result = get_student_listing(user.id, listing_id)
+    result = get_student_listing(
+        user.id,
+        listing_id,
+    )
 
     if not result["ok"]:
-        error = result.get("error", "listing not found")
+        error = result.get(
+            "error",
+            "listing not found",
+        )
 
         if error in {
             "students only",
@@ -226,14 +241,18 @@ def student_listing_details_view(
 
     amenities = [
         amenity.strip()
-        for amenity in (listing.get("amenities") or "").split(",")
+        for amenity in (
+            listing.get("amenities") or ""
+        ).split(",")
         if amenity.strip()
     ]
 
     photo_urls = []
     photo_references = []
 
-    for item in (listing.get("photos") or "").split(","):
+    for item in (
+        listing.get("photos") or ""
+    ).split(","):
         photo = item.strip()
 
         if not photo:
@@ -242,7 +261,10 @@ def student_listing_details_view(
         parsed = urlsplit(photo)
 
         if (
-            parsed.scheme.lower() in {"http", "https"}
+            parsed.scheme.lower() in {
+                "http",
+                "https",
+            }
             and parsed.netloc
         ):
             photo_urls.append(photo)
@@ -258,5 +280,6 @@ def student_listing_details_view(
             "amenities": amenities,
             "photo_urls": photo_urls,
             "photo_references": photo_references,
+            "csrf_token": get_message_csrf_token(request),
         },
     )
