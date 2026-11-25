@@ -254,6 +254,18 @@ def test_invalid_price_is_rejected(
         submit_setup["stored_listings"]()
     ) == 0
 
+    page = submit_setup["client"].get(
+        "/app/landlord/listings/new"
+    )
+
+    assert page.status_code == 200
+    expected_message = (
+        "Monthly rent must be a whole number."
+        if invalid_price == "abc"
+        else "Monthly rent must be greater than zero."
+    )
+    assert expected_message in page.text
+
 
 def test_invalid_location_is_rejected(
     submit_setup,
@@ -270,6 +282,113 @@ def test_invalid_location_is_rejected(
     assert len(
         submit_setup["stored_listings"]()
     ) == 0
+
+    page = submit_setup["client"].get(
+        "/app/landlord/listings/new"
+    )
+
+    assert page.status_code == 200
+    assert (
+        "Accommodation location must be St. Augustine "
+        "or Mount Hope."
+        in page.text
+    )
+
+
+@pytest.mark.parametrize(
+    "missing_field,expected_message",
+    [
+        ("title", "Listing title is required."),
+        (
+            "area",
+            "Accommodation location must be St. Augustine or Mount Hope.",
+        ),
+        ("price", "Monthly rent must be a whole number."),
+        (
+            "contact_phone",
+            "Contact phone number is required.",
+        ),
+        (
+            "contact_email",
+            "Contact email address is required.",
+        ),
+    ],
+)
+def test_missing_required_submission_fields_show_feedback(
+    submit_setup,
+    missing_field,
+    expected_message,
+):
+    token = submit_setup["get_csrf"]()
+    data = {
+        "csrf_token": token,
+        "title": "Test Apartment Near UWI",
+        "area": "st_augustine",
+        "price": "2500",
+        "amenities": "wifi, parking",
+        "contact_phone": "868-555-1234",
+        "contact_email": "landlord@example.com",
+        "photos": "",
+    }
+    data.pop(missing_field)
+
+    response = submit_setup["client"].post(
+        "/app/landlord/listings/new",
+        data=data,
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"].endswith(
+        "/app/landlord/listings/new"
+    )
+    assert submit_setup["stored_listings"]() == []
+
+    page = submit_setup["client"].get(
+        "/app/landlord/listings/new"
+    )
+
+    assert page.status_code == 200
+    assert expected_message in page.text
+
+
+@pytest.mark.parametrize(
+    "changes,expected_message",
+    [
+        (
+            {"title": "   "},
+            "Listing title is required.",
+        ),
+        (
+            {"contact_phone": "   "},
+            "Contact phone number is required.",
+        ),
+        (
+            {"contact_email": "invalid-email"},
+            "Enter a valid contact email address.",
+        ),
+    ],
+)
+def test_invalid_required_submission_fields_show_feedback(
+    submit_setup,
+    changes,
+    expected_message,
+):
+    token = submit_setup["get_csrf"]()
+
+    response = submit_setup["submit"](
+        token,
+        **changes,
+    )
+
+    assert response.status_code == 303
+    assert len(submit_setup["stored_listings"]()) == 0
+
+    page = submit_setup["client"].get(
+        "/app/landlord/listings/new"
+    )
+
+    assert page.status_code == 200
+    assert expected_message in page.text
 
 
 def test_listing_uses_logged_in_landlord(

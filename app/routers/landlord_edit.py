@@ -1,5 +1,5 @@
 
-"""Task #34: Landlord listing editing and resubmission pages."""
+"""Task #52: Validated landlord listing editing and resubmission."""
 
 import secrets
 
@@ -9,7 +9,9 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from app.dependencies.auth import AuthDep
 from app.services import listings
 from app.services.location_rules import ALLOWED_AREAS
+from app.utilities.browser_validation import validate_listing_form
 from app.utilities.flash import flash
+
 from . import router, templates
 
 
@@ -18,6 +20,8 @@ CSRF_SESSION_KEY = "landlord_edit_csrf"
 
 
 def _require_landlord(user):
+    """Allow only landlords to access editing workflows."""
+
     if user.role != "landlord":
         raise HTTPException(
             status_code=403,
@@ -26,7 +30,7 @@ def _require_landlord(user):
 
 
 def _owned_listing(user, listing_id: int):
-    """Only return a listing belonging to this landlord."""
+    """Retrieve a listing belonging to the authenticated landlord."""
 
     _require_landlord(user)
 
@@ -35,14 +39,14 @@ def _owned_listing(user, listing_id: int):
     if not result["ok"]:
         raise HTTPException(
             status_code=403,
-            detail=result["error"],
+            detail="Access denied",
         )
 
     for item in result["listings"]:
         if item["id"] == listing_id:
             return item
 
-    # Do not reveal whether another landlord owns the ID.
+    # Hide whether another landlord owns this listing.
     raise HTTPException(
         status_code=404,
         detail="Listing not found",
@@ -50,6 +54,8 @@ def _owned_listing(user, listing_id: int):
 
 
 def _get_csrf_token(request: Request) -> str:
+    """Create or retrieve the editing security token."""
+
     token = request.session.get(CSRF_SESSION_KEY)
 
     if not isinstance(token, str) or not token:
@@ -60,6 +66,8 @@ def _get_csrf_token(request: Request) -> str:
 
 
 def _check_csrf(request: Request, submitted_token: str):
+    """Reject missing or invalid CSRF tokens."""
+
     expected = request.session.get(CSRF_SESSION_KEY)
 
     if (
@@ -86,6 +94,8 @@ def landlord_edit_view(
     listing_id: int,
     user: AuthDep,
 ):
+    """Display the editing form for an owned, editable listing."""
+
     listing = _owned_listing(user, listing_id)
 
     if listing["status"] not in EDITABLE_STATUSES:
@@ -114,19 +124,26 @@ def landlord_edit_action(
     request: Request,
     listing_id: int,
     user: AuthDep,
-    csrf_token: str = Form(),
-    title: str = Form(),
-    area: str = Form(),
-    price: str = Form(),
+    csrf_token: str = Form(default=""),
+    title: str = Form(default=""),
+    area: str = Form(default=""),
+    price: str = Form(default=""),
     amenities: str = Form(default=""),
-    contact_phone: str = Form(),
-    contact_email: str = Form(),
+    contact_phone: str = Form(default=""),
+    contact_email: str = Form(default=""),
     photos: str = Form(default=""),
 ):
+    """Validate and save changes without bypassing lifecycle rules."""
+
+    # Preserve authorization and ownership restrictions.
+    _require_landlord(user)
+
+    # Preserve CSRF protection.
     _check_csrf(request, csrf_token)
 
     listing = _owned_listing(user, listing_id)
 
+    # Only pending and rejected listings may be edited.
     if listing["status"] not in EDITABLE_STATUSES:
         raise HTTPException(
             status_code=409,
@@ -138,35 +155,42 @@ def landlord_edit_action(
         listing_id=listing_id,
     )
 
-    try:
-        numeric_price = int(price)
-    except ValueError:
-        flash(
-            request,
-            "Price must be a whole number.",
-            "danger",
-        )
-        return RedirectResponse(
-            url=str(edit_url),
-            status_code=status.HTTP_303_SEE_OTHER,
-        )
-
-    result = listings.update_listing(
-        user.id,
-        listing_id,
+    # Use the same validation rules as listing submissions.
+    validation = validate_listing_form(
         title=title,
         area=area,
-        price=numeric_price,
+        price=price,
         amenities=amenities,
         contact_phone=contact_phone,
         contact_email=contact_email,
         photos=photos,
     )
 
+    if not validation["ok"]:
+        flash(
+            request,
+            validation["error"],
+            "danger",
+        )
+
+        return RedirectResponse(
+            url=str(edit_url),
+            status_code=status.HTTP_303_SEE_OTHER,
+        )
+
+    # No database update occurs before validation succeeds.
+    clean_data = validation["data"]
+
+    result = listings.update_listing(
+        user.id,
+        listing_id,
+        **clean_data,
+    )
+
     if not result["ok"]:
         flash(
             request,
-            result.get("error", "Could not save changes."),
+            "Unable to save listing changes. Please try again.",
             "danger",
         )
     else:
@@ -190,8 +214,11 @@ def landlord_resubmit_action(
     request: Request,
     listing_id: int,
     user: AuthDep,
-    csrf_token: str = Form(),
+    csrf_token: str = Form(default=""),
 ):
+    """Resubmit a rejected listing for administrator review."""
+
+    _require_landlord(user)
     _check_csrf(request, csrf_token)
 
     listing = _owned_listing(user, listing_id)
@@ -211,7 +238,7 @@ def landlord_resubmit_action(
     if not result["ok"]:
         flash(
             request,
-            result.get("error", "Resubmission failed."),
+            "Unable to resubmit this listing. Please try again.",
             "danger",
         )
 

@@ -1,5 +1,5 @@
 
-"""Task #44: Student accommodation messaging form."""
+"""Task #52: Student messaging validation and user feedback."""
 
 import secrets
 
@@ -51,6 +51,41 @@ def check_message_csrf_token(
         )
 
 
+def validate_message_body(body: str) -> dict:
+    """Validate the message before calling the service."""
+
+    cleaned_body = body.strip()
+
+    if not cleaned_body:
+        return {
+            "ok": False,
+            "error": "Please enter a message before sending.",
+        }
+
+    if len(cleaned_body) > MAX_MESSAGE_LENGTH:
+        return {
+            "ok": False,
+            "error": (
+                "Your message cannot exceed "
+                "2000 characters."
+            ),
+        }
+
+    return {
+        "ok": True,
+        "body": cleaned_body,
+    }
+
+
+def _redirect(request: Request, route: str, **params):
+    """Redirect after browser form processing."""
+
+    return RedirectResponse(
+        url=str(request.url_for(route, **params)),
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
 @router.post(
     "/app/listings/{listing_id}/message",
     name="student_send_message_action",
@@ -62,67 +97,45 @@ def student_send_message_action(
     body: str = Form(default=""),
     csrf_token: str = Form(default=""),
 ):
-    """Send a message to the landlord of an available listing."""
+    """Validate and send a student accommodation inquiry."""
 
+    # Authorization.
     if user.role != "student":
         raise HTTPException(
             status_code=403,
             detail="Students only",
         )
 
+    # CSRF protection.
     check_message_csrf_token(
         request,
         csrf_token,
     )
 
-    listing_url = request.url_for(
-        "student_listing_details_view",
-        listing_id=listing_id,
-    )
+    # Validate input before any message is created.
+    validation = validate_message_body(body)
 
-    browse_url = request.url_for(
-        "student_listings_view"
-    )
-
-    cleaned_body = body.strip()
-
-    if not cleaned_body:
+    if not validation["ok"]:
         flash(
             request,
-            "Please enter a message before sending.",
+            validation["error"],
             "danger",
         )
 
-        return RedirectResponse(
-            url=str(listing_url),
-            status_code=status.HTTP_303_SEE_OTHER,
-        )
-
-    if len(cleaned_body) > MAX_MESSAGE_LENGTH:
-        flash(
+        return _redirect(
             request,
-            "Your message cannot exceed 2000 characters.",
-            "danger",
+            "student_listing_details_view",
+            listing_id=listing_id,
         )
 
-        return RedirectResponse(
-            url=str(listing_url),
-            status_code=status.HTTP_303_SEE_OTHER,
-        )
-
-    # Reuse the existing messaging service.
-    # The service checks student eligibility and listing availability.
     result = listings.send_message(
         student_id=user.id,
         listing_id=listing_id,
-        body=cleaned_body,
+        body=validation["body"],
     )
 
     if not result["ok"]:
-        error = result.get(
-            "error",
-            "Unable to send your message.",
-        )
+        error = result.get("error")
 
         if error in {
             "listing not found",
@@ -135,22 +148,35 @@ def student_send_message_action(
                 "danger",
             )
 
-            return RedirectResponse(
-                url=str(browse_url),
-                status_code=status.HTTP_303_SEE_OTHER,
+            return _redirect(
+                request,
+                "student_listings_view",
             )
 
-        flash(
+        if error == "student eligibility required":
+            flash(
+                request,
+                "Your student account is not currently "
+                "eligible to send messages.",
+                "danger",
+            )
+
+        else:
+            # Do not show raw internal service errors.
+            flash(
+                request,
+                "Unable to send your message. "
+                "Please try again.",
+                "danger",
+            )
+
+        return _redirect(
             request,
-            error,
-            "danger",
+            "student_listing_details_view",
+            listing_id=listing_id,
         )
 
-        return RedirectResponse(
-            url=str(listing_url),
-            status_code=status.HTTP_303_SEE_OTHER,
-        )
-
+    # Display success only after the service confirms saving.
     flash(
         request,
         "Your message has been sent successfully "
@@ -158,7 +184,8 @@ def student_send_message_action(
         "success",
     )
 
-    return RedirectResponse(
-        url=str(listing_url),
-        status_code=status.HTTP_303_SEE_OTHER,
+    return _redirect(
+        request,
+        "student_listing_details_view",
+        listing_id=listing_id,
     )

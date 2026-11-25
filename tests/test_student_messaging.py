@@ -450,6 +450,17 @@ def test_empty_message_is_rejected(
     assert response.status_code == 303
     assert len(setup["messages"]()) == 0
 
+    page = setup["client"].get(
+        f"/app/listings/{listing_id}"
+    )
+
+    assert page.status_code == 200
+    assert (
+        "Please enter a message before sending."
+        in page.text
+    )
+    assert "alert-danger" in page.text
+
 
 def test_message_over_2000_characters_is_rejected(
     messaging_setup,
@@ -467,6 +478,17 @@ def test_message_over_2000_characters_is_rejected(
 
     assert response.status_code == 303
     assert len(setup["messages"]()) == 0
+
+    page = setup["client"].get(
+        f"/app/listings/{listing_id}"
+    )
+
+    assert page.status_code == 200
+    assert (
+        "Your message cannot exceed 2000 characters."
+        in page.text
+    )
+    assert "alert-danger" in page.text
 
 
 def test_message_at_2000_characters_is_allowed(

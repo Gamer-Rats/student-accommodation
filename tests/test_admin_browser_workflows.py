@@ -455,6 +455,7 @@ def test_invalid_transition_shows_error_and_preserves_state(
 def test_blank_rejection_reason_is_blocked(admin_browser):
     listing_id = admin_browser["create"]()
     token = admin_browser["csrf"]()
+    before = admin_browser["saved"](listing_id).copy()
 
     response = admin_browser["submit"](
         listing_id,
@@ -465,14 +466,12 @@ def test_blank_rejection_reason_is_blocked(admin_browser):
 
     assert response.status_code == 303
 
-    assert (
-        admin_browser["saved"](listing_id)["status"]
-        == "pending"
-    )
+    assert admin_browser["saved"](listing_id) == before
 
     page = admin_browser["client"].get("/admin/listings")
 
     assert "rejection feedback is required" in page.text
+    assert "alert-danger" in page.text
 
 
 def test_invalid_csrf_does_not_change_listing(
@@ -515,6 +514,7 @@ def test_missing_csrf_is_rejected(admin_browser):
 def test_unlisted_browser_action_is_rejected(admin_browser):
     listing_id = admin_browser["create"]()
     token = admin_browser["csrf"]()
+    before = admin_browser["saved"](listing_id).copy()
 
     response = admin_browser["submit"](
         listing_id,
@@ -523,11 +523,31 @@ def test_unlisted_browser_action_is_rejected(admin_browser):
     )
 
     assert response.status_code == 400
+    assert response.json() == {
+        "detail": "Invalid review action"
+    }
 
-    assert (
-        admin_browser["saved"](listing_id)["status"]
-        == "pending"
+    assert admin_browser["saved"](listing_id) == before
+
+
+def test_missing_listing_review_returns_safe_error_and_preserves_state(
+    admin_browser,
+):
+    existing_id = admin_browser["create"](
+        title="Existing Property",
     )
+    token = admin_browser["csrf"]()
+    before = admin_browser["saved"](existing_id).copy()
+
+    response = admin_browser["submit"](
+        999999,
+        "verify",
+        token,
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Listing not found"}
+    assert admin_browser["saved"](existing_id) == before
 
 
 @pytest.mark.parametrize("role_id", [2, 3])
@@ -574,16 +594,27 @@ def test_nonadmins_cannot_post_admin_actions(
 def test_rejection_feedback_is_safely_escaped(
     admin_browser,
 ):
-    admin_browser["create"](
-        status="rejected",
-        feedback="<script>alert('bad')</script>",
+    listing_id = admin_browser["create"]()
+    token = admin_browser["csrf"]()
+    supplied_feedback = "<script>alert('bad')</script>"
+
+    response = admin_browser["submit"](
+        listing_id,
+        "reject",
+        token,
+        feedback=supplied_feedback,
     )
+
+    assert response.status_code == 303
+    saved = admin_browser["saved"](listing_id)
+    assert saved["status"] == "rejected"
+    assert saved["review_feedback"] == supplied_feedback
 
     page = admin_browser["client"].get("/admin/listings")
 
     assert page.status_code == 200
-    assert "<script>" not in page.text
-    assert "&lt;script&gt;" in page.text
+    assert supplied_feedback not in page.text
+    assert "&lt;script&gt;alert(&#39;bad&#39;)&lt;/script&gt;" in page.text
 
 
 def test_review_changes_only_targeted_listing(
