@@ -322,6 +322,49 @@ def browse_for_students(
     }
 
 
+# Task #39 (Sprint 2): Retrieve one student-visible accommodation listing
+
+def get_student_listing(
+    student_id: int,
+    listing_id: int,
+) -> dict[str, Any]:
+    """Return a listing only if the student may view it."""
+
+    student = get_user(student_id)
+
+    error = student_access_error(student)
+
+    if error:
+        return {
+            "ok": False,
+            "error": error,
+        }
+
+    with Session(engine) as session:
+        listing = session.get(Listing, listing_id)
+
+        if listing is None:
+            return {
+                "ok": False,
+                "error": "listing not found",
+            }
+
+        item = listing.model_dump()
+
+    # Reuse the same rules as student browsing.
+    # Hidden or unavailable listings are treated as not found.
+    if not _available_to_students(item):
+        return {
+            "ok": False,
+            "error": "listing not found",
+        }
+
+    return {
+        "ok": True,
+        "listing": item,
+    }
+
+
 def list_all(
     *,
     status: str | None = None,

@@ -1,11 +1,12 @@
-
 from fastapi import HTTPException, Request
+from urllib.parse import urlsplit
 from fastapi.responses import HTMLResponse
 
 from app.dependencies.session import SessionDep
 from app.dependencies.auth import AuthDep
 from app.services.listings import (
     browse_for_students,
+    get_student_listing,
     list_for_landlord,
 )
 from app.services.location_rules import (
@@ -185,5 +186,80 @@ def landlord_listings_view(
             "user": user,
             "listings": landlord_listings,
             "counts": counts,
+        },
+    )
+
+
+# Task #39 (Sprint 2): Student accommodation listing details page.
+
+@router.get(
+    "/app/listings/{listing_id}",
+    response_class=HTMLResponse,
+    name="student_listing_details_view",
+)
+def student_listing_details_view(
+    request: Request,
+    listing_id: int,
+    user: AuthDep,
+):
+    """Display details of a student-accessible listing."""
+
+    result = get_student_listing(user.id, listing_id)
+
+    if not result["ok"]:
+        error = result.get("error", "listing not found")
+
+        if error in {
+            "students only",
+            "student eligibility required",
+        }:
+            raise HTTPException(
+                status_code=403,
+                detail=error,
+            )
+
+        raise HTTPException(
+            status_code=404,
+            detail="Listing not found",
+        )
+
+    listing = result["listing"]
+
+    # Split the amenities into individual items.
+    amenities = [
+        amenity.strip()
+        for amenity in (listing.get("amenities") or "").split(",")
+        if amenity.strip()
+    ]
+
+    # Only use HTTP/HTTPS URLs as image sources.
+    photo_urls = []
+    photo_references = []
+
+    for item in (listing.get("photos") or "").split(","):
+        photo = item.strip()
+
+        if not photo:
+            continue
+
+        parsed = urlsplit(photo)
+
+        if (
+            parsed.scheme.lower() in {"http", "https"}
+            and parsed.netloc
+        ):
+            photo_urls.append(photo)
+        else:
+            photo_references.append(photo)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="student-listing-details.html",
+        context={
+            "user": user,
+            "listing": listing,
+            "amenities": amenities,
+            "photo_urls": photo_urls,
+            "photo_references": photo_references,
         },
     )
