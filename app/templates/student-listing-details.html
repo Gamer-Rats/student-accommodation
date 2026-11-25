@@ -1,0 +1,158 @@
+{% extends "authenticated-base.html" %}
+
+{% block title %}{{ listing.title|e }} · NestLink{% endblock %}
+
+{% block subpage_content %}
+
+<div class="mb-4">
+  <a
+    href="{{ url_for('student_listings_view') }}"
+    class="btn btn-outline-secondary btn-sm mb-3"
+  >
+    Back to Listings
+  </a>
+
+  <h1>{{ listing.title|e }}</h1>
+
+  <p class="text-muted">
+    {{ listing.area|replace('_', ' ')|title|e }}
+  </p>
+</div>
+
+<!-- Property overview -->
+<div class="row g-4">
+
+  <div class="col-12 col-md-8">
+
+    <div class="card mb-4">
+      <div class="card-body">
+
+        <h2 class="h5">Property Information</h2>
+
+        <p>
+          <strong>Location:</strong>
+          {{ listing.area|replace('_', ' ')|title|e }}
+        </p>
+
+        <p>
+          <strong>Monthly Rent:</strong>
+          TT${{ "{:,}".format(listing.price) }}
+        </p>
+
+        <p>
+          <strong>Availability:</strong>
+          <span class="badge bg-success">
+            Available
+          </span>
+        </p>
+
+        <p class="mb-0">
+          <strong>Listing ID:</strong>
+          {{ listing.id }}
+        </p>
+
+      </div>
+    </div>
+
+    <!-- Amenities -->
+    <div class="card mb-4">
+      <div class="card-body">
+
+        <h2 class="h5">Amenities</h2>
+
+        {% if amenities %}
+          <ul class="mb-0">
+            {% for amenity in amenities %}
+              <li>{{ amenity|e }}</li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-muted mb-0">
+            No amenities have been listed.
+          </p>
+        {% endif %}
+
+      </div>
+    </div>
+
+    <!-- Photos -->
+    <div class="card mb-4">
+      <div class="card-body">
+
+        <h2 class="h5">Property Photos</h2>
+
+        {% if photo_urls %}
+
+          <div class="row g-3">
+            {% for photo in photo_urls %}
+
+              <div class="col-12 col-sm-6">
+                <img
+                  src="{{ photo|e }}"
+                  alt="Photograph of {{ listing.title|e }}"
+                  class="img-fluid rounded border"
+                  loading="lazy"
+                >
+              </div>
+
+            {% endfor %}
+          </div>
+
+        {% endif %}
+
+        {% if photo_references %}
+
+          <p class="text-muted small mt-3 mb-1">
+            Additional photo references:
+          </p>
+
+          <ul class="mb-0">
+            {% for photo in photo_references %}
+              <li>{{ photo|e }}</li>
+            {% endfor %}
+          </ul>
+
+        {% endif %}
+
+        {% if not photo_urls and not photo_references %}
+          <p class="text-muted mb-0">
+            No property photographs have been provided.
+          </p>
+        {% endif %}
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Landlord contact -->
+  <div class="col-12 col-md-4">
+
+    <div class="card">
+      <div class="card-body">
+
+        <h2 class="h5">Contact Landlord</h2>
+
+        <p>
+          <strong>Phone:</strong>
+          {{ listing.contact_phone|e }}
+        </p>
+
+        <p>
+          <strong>Email:</strong>
+          {{ listing.contact_email|e }}
+        </p>
+
+        <p class="text-muted small mb-0">
+          Contact the landlord for additional information
+          about this accommodation.
+        </p>
+
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+{% endblock %}

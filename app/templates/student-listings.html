@@ -36,7 +36,17 @@
             {% if listing.amenities %}
               <p>{{ listing.amenities|replace(',', ', ')|e }}</p>
             {% endif %}
-            <p class="mb-0">{{ listing.contact_phone|e }}<br>{{ listing.contact_email|e }}</p>
+            <p>
+              {{ listing.contact_phone|e }}
+              <br>
+              {{ listing.contact_email|e }}
+            </p>
+
+            <a
+              href="{{ url_for('student_listing_details_view', listing_id=listing.id) }}"
+              class="btn btn-primary btn-sm">
+              View Details
+            </a>
           </div>
         </article>
       </div>
