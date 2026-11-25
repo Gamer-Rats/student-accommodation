@@ -9,8 +9,8 @@
 
   <p class="text-muted">
     Review submissions, provisionally accept or verify
-    listings, reject invalid submissions, and deactivate
-    active properties when necessary.
+    listings, reject invalid submissions, deactivate
+    active properties, and manage administrative holds.
   </p>
 </div>
 
@@ -82,6 +82,7 @@
         </td>
 
         <td>
+
           {% if listing.status == 'pending' %}
             <span class="badge bg-warning text-dark">
               Pending
@@ -136,11 +137,12 @@
               {{ listing.review_feedback|default("No reason recorded.", true)|e }}
             </div>
           {% endif %}
+
         </td>
 
         <td>
 
-          <!-- Task #37: Verify pending or provisional -->
+          <!-- Verify pending or provisional listings -->
           {% if listing.status in ['pending', 'provisional'] %}
 
             <form
@@ -170,7 +172,7 @@
 
           {% endif %}
 
-          <!-- Task #38: Provisionally accept pending -->
+          <!-- Provisionally accept pending listings -->
           {% if listing.status == 'pending' %}
 
             <form
@@ -200,7 +202,7 @@
 
           {% endif %}
 
-          <!-- Task #37: Reject pending with feedback -->
+          <!-- Reject pending listings with feedback -->
           {% if listing.status == 'pending' %}
 
             <form
@@ -247,12 +249,13 @@
 
           {% endif %}
 
-          <!-- Task #38: Force deactivate active -->
+          <!-- Force deactivate active listings -->
           {% if listing.status == 'active' %}
 
             <form
               method="post"
               action="{{ url_for('admin_review_action', listing_id=listing.id) }}"
+              class="mb-2"
             >
               <input
                 type="hidden"
@@ -277,7 +280,77 @@
 
           {% endif %}
 
-          <!-- Other states -->
+          <!-- Task #49: Release administrative hold -->
+          {% if listing.status == 'inactive' and listing.admin_hold %}
+
+            <form
+              method="post"
+              action="{{ url_for('admin_review_action', listing_id=listing.id) }}"
+              class="mb-2"
+            >
+              <input
+                type="hidden"
+                name="csrf_token"
+                value="{{ csrf_token|e }}"
+              >
+
+              <input
+                type="hidden"
+                name="action"
+                value="release_admin_hold"
+              >
+
+              <button
+                type="submit"
+                class="btn btn-sm btn-outline-warning"
+                onclick="return confirm('Release the administrative hold? The listing will still require reverification.');"
+              >
+                Release Admin Hold
+              </button>
+            </form>
+
+            <p class="text-muted small mb-0">
+              This property cannot be reactivated
+              while the hold remains in place.
+            </p>
+
+          <!-- Task #49: Complete reverification -->
+          {% elif listing.status == 'inactive' and listing.requires_reverification %}
+
+            <form
+              method="post"
+              action="{{ url_for('admin_review_action', listing_id=listing.id) }}"
+              class="mb-2"
+            >
+              <input
+                type="hidden"
+                name="csrf_token"
+                value="{{ csrf_token|e }}"
+              >
+
+              <input
+                type="hidden"
+                name="action"
+                value="complete_reverification"
+              >
+
+              <button
+                type="submit"
+                class="btn btn-sm btn-primary"
+                onclick="return confirm('Confirm that you have reviewed the listing and approved its reverification?');"
+              >
+                Complete Reverification
+              </button>
+            </form>
+
+            <p class="text-muted small mb-0">
+              The listing will remain inactive until
+              its landlord chooses to reactivate it.
+            </p>
+
+          {% endif %}
+
+          <!-- Existing informational messages -->
           {% if listing.status == 'rejected' %}
 
             <span class="text-muted small">
@@ -290,7 +363,7 @@
               Awaiting landlord activation
             </span>
 
-          {% elif listing.status == 'inactive' %}
+          {% elif listing.status == 'inactive' and not listing.admin_hold and not listing.requires_reverification %}
 
             <span class="text-muted small">
               Currently inactive

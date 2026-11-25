@@ -1,3 +1,4 @@
+
 """Administrator pages and listing review actions."""
 
 import secrets
@@ -7,6 +8,10 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.dependencies.auth import AdminDep
 from app.services import listings
+from app.services.admin_hold_policy import (
+    release_admin_hold,
+    complete_reverification,
+)
 from app.services.lifecycle import STATES
 from app.utilities.flash import flash
 
@@ -20,6 +25,8 @@ ADMIN_REVIEW_ACTIONS = {
     "reject",
     "provisionally_accept",
     "force_deactivate",
+    "release_admin_hold",
+    "complete_reverification",
 }
 
 
@@ -102,10 +109,10 @@ def admin_review_action(
     listing_id: int,
     user: AdminDep,
     action: str = Form(),
-    csrf_token: str = Form(),
+    csrf_token: str = Form(default=""),
     review_feedback: str = Form(default=""),
 ):
-    """Apply administrator actions through the listing lifecycle."""
+    """Apply administrator actions through authorized workflows."""
 
     _check_review_token(request, csrf_token)
 
@@ -115,21 +122,39 @@ def admin_review_action(
             detail="Invalid review action",
         )
 
-    result = listings.transition(
-        user.id,
-        listing_id,
-        action,
-        review_feedback=(
-            review_feedback
-            if action == "reject"
-            else None
-        ),
-    )
+    # Task #49: Administrative hold management.
+    if action == "release_admin_hold":
+        result = release_admin_hold(
+            user.id,
+            listing_id,
+        )
+
+    elif action == "complete_reverification":
+        result = complete_reverification(
+            user.id,
+            listing_id,
+        )
+
+    else:
+        # Existing State Pattern lifecycle actions.
+        result = listings.transition(
+            user.id,
+            listing_id,
+            action,
+            review_feedback=(
+                review_feedback
+                if action == "reject"
+                else None
+            ),
+        )
 
     if not result["ok"]:
         flash(
             request,
-            result.get("error", "Review action failed."),
+            result.get(
+                "error",
+                "Review action failed.",
+            ),
             "danger",
         )
 
@@ -161,6 +186,23 @@ def admin_review_action(
             request,
             "Listing forcibly deactivated and placed "
             "on administrative hold.",
+            "success",
+        )
+
+    elif action == "release_admin_hold":
+        flash(
+            request,
+            "Administrative hold released. "
+            "The listing now requires reverification "
+            "before it can be reactivated.",
+            "success",
+        )
+
+    elif action == "complete_reverification":
+        flash(
+            request,
+            "Listing reverification completed successfully. "
+            "The landlord may now reactivate the listing.",
             "success",
         )
 
