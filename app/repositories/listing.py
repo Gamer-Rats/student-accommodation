@@ -3,6 +3,7 @@ from sqlmodel import Session, select
 
 from app.models.listing import Listing
 from app.models.message import Message
+from app.models.user import User
 
 
 class ListingRepository:
@@ -54,6 +55,35 @@ class ListingRepository:
                 Listing.landlord_id == landlord_id
             )
             .order_by(Listing.id)
+        )
+
+        return list(
+            self.db.exec(statement).all()
+        )
+
+    def get_inbox_by_landlord(
+        self,
+        landlord_id: int,
+    ) -> list[tuple[Message, Listing, User | None]]:
+        """Retrieve a landlord's messages with listing and student details."""
+
+        statement = (
+            select(Message, Listing, User)
+            .join(
+                Listing,
+                Message.listing_id == Listing.id,
+            )
+            .outerjoin(
+                User,
+                Message.student_id == User.id,
+            )
+            .where(
+                Listing.landlord_id == landlord_id,
+            )
+            .order_by(
+                Message.created_at.desc(),
+                Message.id.desc(),
+            )
         )
 
         return list(

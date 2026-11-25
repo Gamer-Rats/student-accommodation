@@ -432,6 +432,46 @@ def list_for_landlord(
         }
 
 
+def get_landlord_inbox(
+    landlord_id: int,
+    session: Session,
+) -> list[dict[str, Any]]:
+    """Return formatted inbox messages for a landlord."""
+
+    repository = ListingRepository(session)
+    rows = repository.get_inbox_by_landlord(
+        landlord_id
+    )
+
+    inbox_messages = []
+
+    for message, listing, student in rows:
+        if student is not None:
+            student_name = (
+                student.display_name
+                or student.username
+            )
+            student_username = student.username
+        else:
+            student_name = "Student"
+            student_username = "Unknown"
+
+        inbox_messages.append(
+            {
+                "id": message.id,
+                "listing_id": listing.id,
+                "listing_title": listing.title,
+                "student_id": message.student_id,
+                "student_name": student_name,
+                "student_username": student_username,
+                "body": message.body,
+                "created_at": message.created_at,
+            }
+        )
+
+    return inbox_messages
+
+
 def send_message(
     student_id: int,
     listing_id: int,

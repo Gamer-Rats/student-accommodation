@@ -139,6 +139,130 @@ def test_get_by_landlord_filters_ownership(repository_setup):
     assert own_listings[0].title == "Landlord One Property"
 
 
+def test_get_inbox_by_landlord_filters_by_listing_owner(
+    repository_setup,
+):
+    repository, _, make_listing = repository_setup
+
+    own_listing = repository.create(
+        make_listing(
+            landlord_id=1,
+            title="Landlord One Property",
+        )
+    )
+    other_listing = repository.create(
+        make_listing(
+            landlord_id=2,
+            title="Landlord Two Property",
+        )
+    )
+
+    own_message = repository.create_message(
+        Message(
+            listing_id=own_listing.id,
+            student_id=3,
+            body="Message for landlord one",
+            created_at="2026-11-25T10:00:00+00:00",
+        )
+    )
+    repository.create_message(
+        Message(
+            listing_id=other_listing.id,
+            student_id=4,
+            body="Message for landlord two",
+            created_at="2026-11-25T11:00:00+00:00",
+        )
+    )
+
+    rows = repository.get_inbox_by_landlord(1)
+
+    assert len(rows) == 1
+    assert rows[0][0].id == own_message.id
+    assert rows[0][1].id == own_listing.id
+
+
+def test_get_inbox_by_landlord_returns_empty_list(
+    repository_setup,
+):
+    repository, _, _ = repository_setup
+
+    assert repository.get_inbox_by_landlord(1) == []
+
+
+def test_get_inbox_by_landlord_orders_newest_first_with_id_tiebreaker(
+    repository_setup,
+):
+    repository, _, make_listing = repository_setup
+    listing = repository.create(
+        make_listing(landlord_id=1)
+    )
+
+    messages = [
+        Message(
+            listing_id=listing.id,
+            student_id=3,
+            body="Older message",
+            created_at="2026-11-24T10:00:00+00:00",
+        ),
+        Message(
+            listing_id=listing.id,
+            student_id=3,
+            body="Earlier message at same time",
+            created_at="2026-11-25T10:00:00+00:00",
+        ),
+        Message(
+            listing_id=listing.id,
+            student_id=3,
+            body="Later message at same time",
+            created_at="2026-11-25T10:00:00+00:00",
+        ),
+        Message(
+            listing_id=listing.id,
+            student_id=3,
+            body="Newest message",
+            created_at="2026-11-26T10:00:00+00:00",
+        ),
+    ]
+    saved_messages = [
+        repository.create_message(message)
+        for message in messages
+    ]
+
+    rows = repository.get_inbox_by_landlord(1)
+
+    assert [row[0].body for row in rows] == [
+        "Newest message",
+        "Later message at same time",
+        "Earlier message at same time",
+        "Older message",
+    ]
+    assert rows[1][0].id == saved_messages[2].id
+    assert rows[2][0].id == saved_messages[1].id
+
+
+def test_get_inbox_by_landlord_keeps_messages_without_student_details(
+    repository_setup,
+):
+    repository, _, make_listing = repository_setup
+    listing = repository.create(
+        make_listing(landlord_id=1)
+    )
+    message = repository.create_message(
+        Message(
+            listing_id=listing.id,
+            student_id=999,
+            body="Message from missing student",
+            created_at="2026-11-25T10:00:00+00:00",
+        )
+    )
+
+    rows = repository.get_inbox_by_landlord(1)
+
+    assert len(rows) == 1
+    assert rows[0][0].id == message.id
+    assert rows[0][2] is None
+
+
 def test_landlord_with_no_listings_returns_empty_list(
     repository_setup,
 ):

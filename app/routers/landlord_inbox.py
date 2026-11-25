@@ -3,13 +3,10 @@
 
 from fastapi import HTTPException, Request
 from fastapi.responses import HTMLResponse
-from sqlmodel import select
 
 from app.dependencies.auth import AuthDep
 from app.dependencies.session import SessionDep
-from app.models.listing import Listing
-from app.models.message import Message
-from app.models.user import User
+from app.services import listings
 
 from . import router, templates
 
@@ -32,56 +29,10 @@ def landlord_inbox_view(
             detail="Landlords only",
         )
 
-    # Only retrieve messages associated with listings
-    # belonging to the authenticated landlord.
-    statement = (
-        select(Message, Listing, User)
-        .join(
-            Listing,
-            Message.listing_id == Listing.id,
-        )
-        .outerjoin(
-            User,
-            Message.student_id == User.id,
-        )
-        .where(
-            Listing.landlord_id == user.id,
-        )
-        .order_by(
-            Message.created_at.desc(),
-            Message.id.desc(),
-        )
+    inbox_messages = listings.get_landlord_inbox(
+        user.id,
+        db,
     )
-
-    rows = db.exec(statement).all()
-
-    inbox_messages = []
-
-    for message, listing, student in rows:
-
-        if student is not None:
-            student_name = (
-                student.display_name
-                or student.username
-            )
-            student_username = student.username
-
-        else:
-            student_name = "Student"
-            student_username = "Unknown"
-
-        inbox_messages.append(
-            {
-                "id": message.id,
-                "listing_id": listing.id,
-                "listing_title": listing.title,
-                "student_id": message.student_id,
-                "student_name": student_name,
-                "student_username": student_username,
-                "body": message.body,
-                "created_at": message.created_at,
-            }
-        )
 
     return templates.TemplateResponse(
         request=request,
