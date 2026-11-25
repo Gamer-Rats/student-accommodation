@@ -1,15 +1,28 @@
+
 {% extends "authenticated-base.html" %}
 
 {% block title %}My Listings · NestLink{% endblock %}
 
 {% block subpage_content %}
 
-<div class="mb-4">
-  <h1>My Listings</h1>
-  <p class="text-muted">
-    View and manage your accommodation listings and
-    track their approval status.
-  </p>
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+
+  <div>
+    <h1>My Listings</h1>
+
+    <p class="text-muted mb-0">
+      View and manage your accommodation listings
+      and track their approval status.
+    </p>
+  </div>
+
+  <a
+    class="btn btn-primary"
+    href="{{ url_for('landlord_submit_view') }}"
+  >
+    + Submit New Listing
+  </a>
+
 </div>
 
 <!-- Dashboard summary -->
@@ -18,7 +31,10 @@
   <div class="col-6 col-md-3">
     <div class="card h-100">
       <div class="card-body">
-        <div class="text-muted small">Total Listings</div>
+        <div class="text-muted small">
+          Total Listings
+        </div>
+
         <strong id="count-total" class="h3 d-block mb-0">
           {{ counts.total }}
         </strong>
@@ -29,7 +45,10 @@
   <div class="col-6 col-md-3">
     <div class="card h-100">
       <div class="card-body">
-        <div class="text-muted small">Pending</div>
+        <div class="text-muted small">
+          Pending
+        </div>
+
         <strong id="count-pending" class="h3 d-block mb-0">
           {{ counts.pending }}
         </strong>
@@ -40,7 +59,10 @@
   <div class="col-6 col-md-3">
     <div class="card h-100">
       <div class="card-body">
-        <div class="text-muted small">Active</div>
+        <div class="text-muted small">
+          Active
+        </div>
+
         <strong id="count-active" class="h3 d-block mb-0">
           {{ counts.active }}
         </strong>
@@ -51,7 +73,10 @@
   <div class="col-6 col-md-3">
     <div class="card h-100">
       <div class="card-body">
-        <div class="text-muted small">Rejected</div>
+        <div class="text-muted small">
+          Rejected
+        </div>
+
         <strong id="count-rejected" class="h3 d-block mb-0">
           {{ counts.rejected }}
         </strong>
@@ -64,7 +89,9 @@
 <!-- Listing details -->
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
 
-  <h2 class="h4 mb-0">Your Properties</h2>
+  <h2 class="h4 mb-0">
+    Your Properties
+  </h2>
 
   <a
     class="btn btn-outline-primary"
@@ -93,10 +120,14 @@
       <tbody>
 
         {% for listing in listings %}
+
           <tr>
 
             <td>
-              <strong>{{ listing.title|e }}</strong>
+              <strong>
+                {{ listing.title|e }}
+              </strong>
+
               <div class="text-muted small">
                 ID: {{ listing.id }}
               </div>
@@ -113,58 +144,73 @@
             <td>
 
               {% if listing.status == 'pending' %}
+
                 <span class="badge bg-warning text-dark">
                   Pending
                 </span>
 
               {% elif listing.status == 'provisional' %}
+
                 <span class="badge bg-info text-dark">
                   Provisional
                 </span>
 
               {% elif listing.status == 'approved' %}
+
                 <span class="badge bg-primary">
                   Approved
                 </span>
 
               {% elif listing.status == 'active' %}
+
                 <span class="badge bg-success">
                   Active
                 </span>
 
               {% elif listing.status == 'inactive' %}
+
                 <span class="badge bg-secondary">
                   Inactive
                 </span>
 
               {% elif listing.status == 'rejected' %}
+
                 <span class="badge bg-danger">
                   Rejected
                 </span>
 
               {% else %}
+
                 <span class="badge bg-secondary">
                   {{ listing.status|capitalize|e }}
                 </span>
+
               {% endif %}
 
               {% if listing.admin_hold %}
+
                 <div class="small text-danger mt-1">
                   Administrator hold
                 </div>
+
               {% endif %}
 
               {% if listing.requires_reverification %}
+
                 <div class="small text-warning-emphasis mt-1">
                   Requires reverification
                 </div>
+
               {% endif %}
 
               {% if listing.status == 'rejected' %}
+
                 <div class="small mt-2">
                   <strong>Admin Feedback:</strong>
+
                   {{ listing.review_feedback|default("No reason recorded.", true)|e }}
                 </div>
+
               {% endif %}
 
             </td>
@@ -177,37 +223,45 @@
                   class="btn btn-sm btn-outline-primary"
                   href="{{ url_for('landlord_edit_view', listing_id=listing.id) }}"
                 >
+
                   {% if listing.status == 'rejected' %}
                     Edit and Resubmit
                   {% else %}
                     Edit Listing
                   {% endif %}
+
                 </a>
 
               {% elif listing.status == 'provisional' %}
+
                 <span class="text-muted small">
                   Awaiting verification
                 </span>
 
               {% elif listing.status == 'approved' %}
+
                 <span class="text-muted small">
                   Awaiting activation
                 </span>
 
               {% elif listing.status == 'active' %}
+
                 <span class="text-muted small">
                   Currently live
                 </span>
 
               {% else %}
+
                 <span class="text-muted small">
                   No actions available
                 </span>
+
               {% endif %}
 
             </td>
 
           </tr>
+
         {% endfor %}
 
       </tbody>
@@ -220,12 +274,21 @@
   <div class="card">
     <div class="card-body text-center py-5">
 
-      <h2 class="h5">No Listings Yet</h2>
+      <h2 class="h5">
+        No Listings Yet
+      </h2>
 
       <p class="text-muted mx-auto">
         You have not submitted any accommodation listings.
-        Your properties will appear here once created.
+        Create your first listing to begin the approval process.
       </p>
+
+      <a
+        class="btn btn-primary"
+        href="{{ url_for('landlord_submit_view') }}"
+      >
+        Submit Your First Listing
+      </a>
 
     </div>
   </div>
