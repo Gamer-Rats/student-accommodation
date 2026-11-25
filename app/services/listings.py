@@ -47,7 +47,6 @@ def _now() -> str:
 
 def _parse_amenities(raw: str) -> list[str]:
     """Return normalized, individual amenity names."""
-
     return [
         item.strip().casefold()
         for item in (raw or "").split(",")
@@ -59,7 +58,6 @@ def _available_to_students(
     listing: dict[str, Any],
 ) -> bool:
     """Check availability using lifecycle and location rules."""
-
     return (
         visible_to_students(listing)
         and normalize_area(listing.get("area")) in ALLOWED_AREAS
@@ -252,7 +250,6 @@ def browse_for_students(
     results = []
 
     for item in items:
-        # Browsing and messaging use the same availability rules.
         if not _available_to_students(item):
             continue
 
@@ -304,6 +301,32 @@ def list_all(
         ]
 
 
+def list_for_landlord(landlord_id: int) -> dict[str, Any]:
+    """Return only this landlord's listings, including non-public statuses."""
+    actor = get_user(landlord_id)
+
+    if not actor or actor["role"] != "landlord":
+        return {
+            "ok": False,
+            "error": "landlords only",
+        }
+
+    with Session(engine) as session:
+        rows = session.exec(
+            select(Listing)
+            .where(Listing.landlord_id == landlord_id)
+            .order_by(Listing.id)
+        ).all()
+
+        return {
+            "ok": True,
+            "listings": [
+                row.model_dump()
+                for row in rows
+            ],
+        }
+
+
 def send_message(
     student_id: int,
     listing_id: int,
@@ -311,7 +334,6 @@ def send_message(
 ) -> dict[str, Any]:
     student = get_user(student_id)
 
-    # Only eligible students may send messages.
     error = student_access_error(student)
 
     if error:
@@ -335,7 +357,6 @@ def send_message(
                 "error": "listing not found",
             }
 
-        # Prevent messaging about unavailable listings.
         if not _available_to_students(
             listing.model_dump()
         ):
