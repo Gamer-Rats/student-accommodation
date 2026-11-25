@@ -1,16 +1,39 @@
+
 {% extends "authenticated-base.html" %}
 {% block title %}Home · NestLink{% endblock %}
 
 {% block subpage_content %}
 <h1>Housing home</h1>
+
 <p>
-  Browse verified listings, message landlords, and map each API route to a stakeholder need.
-  Seeded listings and accounts are ready after <code>python manage.py init</code>.
+  Browse accommodation listings, manage properties,
+  and use the available housing services.
 </p>
+
 <div class="app-actions">
-  <a href="{{ url_for('swagger_ui_html') }}">Open API docs</a>
+
+  <a href="{{ url_for('swagger_ui_html') }}">
+    Open API docs
+  </a>
+
   {% if user.role == 'student' %}
-    <a class="secondary" href="{{ url_for('student_listings_view') }}">Student listings</a>
+    <a
+      class="secondary"
+      href="{{ url_for('student_listings_view') }}"
+    >
+      Student listings
+    </a>
   {% endif %}
+
+  {% if user.role == 'landlord' %}
+    <a
+      class="secondary"
+      href="{{ url_for('landlord_rejections_view') }}"
+    >
+      Rejected Listings and Feedback
+    </a>
+  {% endif %}
+
 </div>
+
 {% endblock %}

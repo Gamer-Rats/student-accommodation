@@ -80,11 +80,18 @@ def test_valid_state_transitions(
 ):
     listing_id = setup_listings(initial)
 
+    
     result = listings.transition(
         actor_id,
         listing_id,
         action,
+        review_feedback=(
+            "Please correct the listing details."
+            if action == "reject"
+            else None
+        ),
     )
+
 
     assert result["ok"] is True
     assert result["listing"]["status"] == expected

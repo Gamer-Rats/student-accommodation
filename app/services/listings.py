@@ -125,7 +125,11 @@ def transition(
     actor_id: int,
     listing_id: int,
     action: str,
+    *,
+    review_feedback: str | None = None,
 ) -> dict[str, Any]:
+    """Change a listing's state and manage rejection feedback."""
+
     actor = get_user(actor_id)
 
     if not actor:
@@ -169,6 +173,33 @@ def transition(
                     "error": "not listing owner",
                 }
 
+        # Rejecting a listing requires meaningful feedback.
+        cleaned_feedback = ""
+
+        if action == "reject":
+            if (
+                not isinstance(review_feedback, str)
+                or not review_feedback.strip()
+            ):
+                return {
+                    "ok": False,
+                    "error": "rejection feedback is required",
+                }
+
+            cleaned_feedback = review_feedback.strip()
+
+            if len(cleaned_feedback) > 1000:
+                return {
+                    "ok": False,
+                    "error": "rejection feedback is too long",
+                }
+
+        elif review_feedback is not None:
+            return {
+                "ok": False,
+                "error": "feedback is only allowed when rejecting",
+            }
+
         if action in {
             "verify",
             "provisionally_accept",
@@ -193,6 +224,13 @@ def transition(
             "admin_hold", False
         )
 
+        if action == "reject":
+            listing.review_feedback = cleaned_feedback
+
+        elif action == "resubmit":
+            # The old reason no longer applies after resubmission.
+            listing.review_feedback = ""
+
         session.add(listing)
         session.commit()
         session.refresh(listing)
@@ -201,6 +239,7 @@ def transition(
             "ok": True,
             "listing": listing.model_dump(),
         }
+
 
 
 def browse_for_students(

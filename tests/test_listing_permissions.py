@@ -186,9 +186,18 @@ def test_admin_can_perform_admin_actions(
     create, get_saved = setup_permissions
     listing_id = create(status)
 
+    
     result = listings.transition(
-        1, listing_id, action
+        1,
+        listing_id,
+        action,
+        review_feedback=(
+            "Please correct the listing details."
+            if action == "reject"
+            else None
+        ),
     )
+
 
     assert result["ok"] is True
     assert get_saved(listing_id)["status"] == expected
