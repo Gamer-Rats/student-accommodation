@@ -250,7 +250,7 @@ def test_invalid_area_returns_http_400(location_setup):
             area="Arima",
             max_price=None,
             amenity=None,
-            x_user_id="3",
+            actor={"id": 3, "role": "student"},
         )
 
     assert exc.value.status_code == 400

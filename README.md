@@ -28,7 +28,7 @@ Open http://127.0.0.1:5000 — SSR auth shell; scenario JSON under `/api` and Op
 | `landlord@example.com` | `land-dev` | landlord |
 | `landlord2@example.com` | `land-dev` | landlord |
 
-JSON login: `POST /api/auth/login` with `{"email","password"}`. Other scenario endpoints identify the caller with the `X-User-Id` header (demo auth).
+JSON login: `POST /api/auth/login` with `{"email","password"}`. The login response contains an `access_token`; send it on API requests as `Authorization: Bearer <access_token>`. A user ID header is not authentication. Existing browser login cookies work for GET API requests; POST requires a Bearer token.
 
 ## Student brief
 

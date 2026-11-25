@@ -36,8 +36,8 @@ def test_student_browse():
         "/api/auth/login",
         json={"email": "student@example.com", "password": "stud-dev"},
     )
-    uid = login.json()["user"]["id"]
-    r = client.get("/api/student/listings", headers={"X-User-Id": str(uid)})
+    token = login.json()["access_token"]
+    r = client.get("/api/student/listings", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 200
     assert isinstance(r.json()["listings"], list)
 
@@ -90,7 +90,7 @@ def test_admin_can_follow_and_filter_listings_after_browser_sign_in():
         assert browser.get(listings_url).status_code == 401
         unauthorized = browser.get("/api/admin/listings")
         assert unauthorized.status_code == 401
-        assert unauthorized.json() == {"detail": "X-User-Id header required"}
+        assert unauthorized.json() == {"detail": "Authentication required"}
 
 
 def test_student_cannot_open_admin_listings():

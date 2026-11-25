@@ -376,7 +376,7 @@ def test_api_rejects_message_to_unavailable_listing(
     with pytest.raises(HTTPException) as exc:
         message_route(
             body=body,
-            x_user_id="3",
+            actor={"id": 3, "role": "student"},
         )
 
     assert exc.value.status_code == 400
@@ -398,7 +398,7 @@ def test_api_accepts_message_to_active_listing(
 
     result = message_route(
         body=body,
-        x_user_id="3",
+        actor={"id": 3, "role": "student"},
     )
 
     assert result["ok"] is True

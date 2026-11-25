@@ -1,22 +1,31 @@
 
-"""Student-accommodation scenario JSON API (OpenAPI /docs)."""
+"""Student-accommodation JSON API with authenticated user identity."""
 
 from __future__ import annotations
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+import jwt
+from jwt.exceptions import InvalidTokenError
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
-from app.dependencies.auth import get_current_user
-from app.dependencies.session import SessionDep
-
+from app.config import get_settings
 from app.services import housing_auth as auth
 from app.services import listings
 from app.services.location_rules import LOCATION_ERROR
+from app.utilities.security import create_access_token
 
 
 router = APIRouter(tags=["student-accommodation"])
+
+bearer_scheme = HTTPBearer(
+    auto_error=False,
+    scheme_name="StudentAccommodationBearer",
+    description="Sign in at POST /api/auth/login and paste the access_token.",
+)
 
 
 class LoginBody(BaseModel):
@@ -48,53 +57,118 @@ class MessageBody(BaseModel):
     body: str
 
 
-def _actor_id(x_user_id: str | None) -> int:
-    if not x_user_id:
-        raise HTTPException(
-            status_code=401,
-            detail="X-User-Id header required",
-        )
+def _unauthorized() -> HTTPException:
+    return HTTPException(
+        status_code=401,
+        detail="Authentication required",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+def authenticated_actor(
+    request: Request,
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None,
+        Depends(bearer_scheme),
+    ],
+) -> dict[str, Any]:
+    """Identify the caller using a verified signed token.
+
+    Bearer tokens work for all API methods.
+
+    Existing browser authentication cookies are supported for
+    GET requests. API write operations require a Bearer token.
+
+    The old X-User-Id header is deliberately ignored.
+    """
+
+    authorization_header = request.headers.get("authorization")
+
+    if authorization_header is not None:
+        if (
+            credentials is None
+            or credentials.scheme.lower() != "bearer"
+        ):
+            raise _unauthorized()
+
+        token = credentials.credentials
+
+    elif request.method.upper() == "GET":
+        token = request.cookies.get("access_token")
+
+    else:
+        token = None
+
+    if not token:
+        raise _unauthorized()
 
     try:
-        return int(x_user_id)
+        settings = get_settings()
 
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=400,
-            detail="X-User-Id must be int",
-        ) from exc
+        payload = jwt.decode(
+            token,
+            settings.secret_key,
+            algorithms=[settings.jwt_algorithm],
+        )
+
+        subject = payload.get("sub")
+
+        if not isinstance(subject, str) or not subject.isdecimal():
+            raise ValueError("Token subject must be a numeric user ID")
+
+        user_id = int(subject)
+
+        if user_id <= 0:
+            raise ValueError("Invalid user ID")
+
+    except (InvalidTokenError, TypeError, ValueError) as exc:
+        raise _unauthorized() from exc
+
+    # Get the actual account from the database.
+    # Never trust a role supplied by the caller or stored in the token.
+    actor = auth.get_user(user_id)
+
+    if actor is None:
+        raise _unauthorized()
+
+    return actor
 
 
-async def _browser_user_id(
-    request: Request,
-    db: SessionDep,
-) -> int | None:
-    if "access_token" in request.cookies:
-        user = await get_current_user(request, db)
-        return user.id
-    return None
+Actor = Annotated[
+    dict[str, Any],
+    Depends(authenticated_actor),
+]
 
 
 @router.post("/auth/login")
 def login(body: LoginBody) -> dict[str, Any]:
     user = auth.login(body.email, body.password)
 
-    if not user:
+    if user is None:
         raise HTTPException(
             status_code=401,
             detail="invalid credentials",
         )
 
-    return {"user": user}
+    token = create_access_token(
+        data={"sub": str(user["id"])}
+    )
+
+    return {
+        "user": user,
+        "access_token": token,
+        "token_type": "bearer",
+    }
 
 
 @router.post("/landlord/listings")
 def submit(
     body: ListingBody,
-    x_user_id: str | None = Header(default=None),
+    actor: Actor,
 ) -> dict[str, Any]:
+
     result = listings.submit_listing(
-        _actor_id(x_user_id),
+        actor["id"],
         title=body.title,
         area=body.area,
         price=body.price,
@@ -117,10 +191,11 @@ def submit(
 def transition(
     listing_id: int,
     body: TransitionBody,
-    x_user_id: str | None = Header(default=None),
+    actor: Actor,
 ) -> dict[str, Any]:
+
     result = listings.transition(
-        _actor_id(x_user_id),
+        actor["id"],
         listing_id,
         body.action,
     )
@@ -136,15 +211,14 @@ def transition(
 
 @router.get("/student/listings")
 def browse(
+    actor: Actor,
     area: str | None = None,
     max_price: int | None = None,
     amenity: str | None = None,
-    x_user_id: str | None = Header(default=None),
-    browser_user_id: Annotated[int | None, Depends(_browser_user_id)] = None,
 ) -> dict[str, Any]:
-    actor_id = browser_user_id if browser_user_id is not None else _actor_id(x_user_id)
+
     result = listings.browse_for_students(
-        actor_id,
+        actor["id"],
         area=area,
         max_price=max_price,
         amenity=amenity,
@@ -167,14 +241,11 @@ def browse(
 
 @router.get("/admin/listings")
 def admin_list(
+    actor: Actor,
     status: str | None = None,
-    x_user_id: str | None = Header(default=None),
-    browser_user_id: Annotated[int | None, Depends(_browser_user_id)] = None,
 ) -> dict[str, Any]:
-    actor_id = browser_user_id if browser_user_id is not None else _actor_id(x_user_id)
-    actor = auth.get_user(actor_id)
 
-    if not actor or actor["role"] != "admin":
+    if actor["role"] != "admin":
         raise HTTPException(
             status_code=403,
             detail="admin only",
@@ -188,10 +259,11 @@ def admin_list(
 @router.post("/student/messages")
 def message(
     body: MessageBody,
-    x_user_id: str | None = Header(default=None),
+    actor: Actor,
 ) -> dict[str, Any]:
+
     result = listings.send_message(
-        _actor_id(x_user_id),
+        actor["id"],
         body.listing_id,
         body.body,
     )
