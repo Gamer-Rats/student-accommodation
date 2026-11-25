@@ -1,0 +1,223 @@
+
+{% extends "authenticated-base.html" %}
+
+{% block title %}Edit Listing · NestLink{% endblock %}
+
+{% block subpage_content %}
+
+<div class="mb-4">
+  <h1>Edit Accommodation Listing</h1>
+
+  <p class="text-muted">
+    Update your accommodation details before administrator review.
+  </p>
+
+  <a
+    class="btn btn-outline-secondary"
+    href="{{ url_for('landlord_rejections_view') }}"
+  >
+    Back to Rejected Listings
+  </a>
+</div>
+
+<div class="card mb-4">
+  <div class="card-body">
+
+    <h2 class="h5">{{ listing.title|e }}</h2>
+
+    <p>
+      <strong>Listing ID:</strong> {{ listing.id }}
+    </p>
+
+    <p>
+      <strong>Status:</strong>
+      {{ listing.status|capitalize|e }}
+    </p>
+
+    {% if listing.status == "rejected" %}
+      <div class="alert alert-warning">
+        <strong>Administrator Feedback</strong>
+        <p class="mb-0 mt-2">
+          {{ listing.review_feedback|default("No feedback recorded.", true)|e }}
+        </p>
+      </div>
+    {% endif %}
+
+  </div>
+</div>
+
+<form
+  method="post"
+  action="{{ url_for('landlord_edit_action', listing_id=listing.id) }}"
+  class="card mb-4"
+>
+  <div class="card-body">
+
+    <input
+      type="hidden"
+      name="csrf_token"
+      value="{{ csrf_token }}"
+    >
+
+    <div class="mb-3">
+      <label for="title" class="form-label">
+        Listing Title
+      </label>
+
+      <input
+        type="text"
+        class="form-control"
+        id="title"
+        name="title"
+        value="{{ listing.title|e }}"
+        maxlength="200"
+        required
+      >
+    </div>
+
+    <div class="mb-3">
+      <label for="area" class="form-label">
+        Location
+      </label>
+
+      <select
+        class="form-select"
+        id="area"
+        name="area"
+        required
+      >
+        {% for area in areas %}
+          <option
+            value="{{ area|e }}"
+            {% if area == listing.area %}selected{% endif %}
+          >
+            {{ area|replace('_', ' ')|title|e }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="mb-3">
+      <label for="price" class="form-label">
+        Monthly Rent (TT$)
+      </label>
+
+      <input
+        type="number"
+        class="form-control"
+        id="price"
+        name="price"
+        value="{{ listing.price }}"
+        min="1"
+        step="1"
+        required
+      >
+    </div>
+
+    <div class="mb-3">
+      <label for="amenities" class="form-label">
+        Amenities
+      </label>
+
+      <input
+        type="text"
+        class="form-control"
+        id="amenities"
+        name="amenities"
+        value="{{ listing.amenities|e }}"
+      >
+
+      <div class="form-text">
+        Separate amenities with commas, such as wifi, parking, AC.
+      </div>
+    </div>
+
+    <div class="mb-3">
+      <label for="contact_phone" class="form-label">
+        Contact Phone
+      </label>
+
+      <input
+        type="text"
+        class="form-control"
+        id="contact_phone"
+        name="contact_phone"
+        value="{{ listing.contact_phone|e }}"
+        required
+      >
+    </div>
+
+    <div class="mb-3">
+      <label for="contact_email" class="form-label">
+        Contact Email
+      </label>
+
+      <input
+        type="email"
+        class="form-control"
+        id="contact_email"
+        name="contact_email"
+        value="{{ listing.contact_email|e }}"
+        required
+      >
+    </div>
+
+    <div class="mb-3">
+      <label for="photos" class="form-label">
+        Photo References
+      </label>
+
+      <input
+        type="text"
+        class="form-control"
+        id="photos"
+        name="photos"
+        value="{{ listing.photos|e }}"
+      >
+
+      <div class="form-text">
+        Enter photo references or URLs.
+        File uploading is not part of this task.
+      </div>
+    </div>
+
+    <button class="btn btn-primary" type="submit">
+      Save Changes
+    </button>
+
+  </div>
+</form>
+
+{% if listing.status == "rejected" %}
+
+  <div class="card">
+    <div class="card-body">
+
+      <h2 class="h5">Ready for another review?</h2>
+
+      <p>
+        Save your corrections first. Resubmitting changes
+        the listing from Rejected to Pending.
+      </p>
+
+      <form
+        method="post"
+        action="{{ url_for('landlord_resubmit_action', listing_id=listing.id) }}"
+      >
+        <input
+          type="hidden"
+          name="csrf_token"
+          value="{{ csrf_token }}"
+        >
+
+        <button class="btn btn-success" type="submit">
+          Resubmit for Administrator Review
+        </button>
+      </form>
+
+    </div>
+  </div>
+
+{% endif %}
+
+{% endblock %}

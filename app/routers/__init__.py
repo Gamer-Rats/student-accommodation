@@ -20,6 +20,7 @@ from . import (
     register,
     admin_home,
     user_home,
+    landlord_edit,
     users,
     logout,
     server_config,
