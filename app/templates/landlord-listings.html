@@ -25,231 +25,283 @@
 
 </div>
 
-<!-- Dashboard summary -->
-<div class="row g-3 mb-4">
+<!-- Accessible dashboard summary -->
+<section aria-label="Listing status summary" class="mb-4">
 
-  <div class="col-6 col-md-3">
-    <div class="card h-100">
-      <div class="card-body">
-        <div class="text-muted small">
-          Total Listings
+  <div class="row g-3">
+
+    <div class="col-6 col-md-3">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-muted small">
+            Total Listings
+          </div>
+          <strong id="count-total" class="h3 d-block mb-0">
+            {{ counts.total }}
+          </strong>
         </div>
-
-        <strong id="count-total" class="h3 d-block mb-0">
-          {{ counts.total }}
-        </strong>
       </div>
     </div>
-  </div>
 
-  <div class="col-6 col-md-3">
-    <div class="card h-100">
-      <div class="card-body">
-        <div class="text-muted small">
-          Pending
+    <div class="col-6 col-md-3">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-muted small">
+            Pending
+          </div>
+          <strong id="count-pending" class="h3 d-block mb-0">
+            {{ counts.pending }}
+          </strong>
         </div>
-
-        <strong id="count-pending" class="h3 d-block mb-0">
-          {{ counts.pending }}
-        </strong>
       </div>
     </div>
-  </div>
 
-  <div class="col-6 col-md-3">
-    <div class="card h-100">
-      <div class="card-body">
-        <div class="text-muted small">
-          Active
+    <div class="col-6 col-md-3">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-muted small">
+            Active
+          </div>
+          <strong id="count-active" class="h3 d-block mb-0">
+            {{ counts.active }}
+          </strong>
         </div>
-
-        <strong id="count-active" class="h3 d-block mb-0">
-          {{ counts.active }}
-        </strong>
       </div>
     </div>
-  </div>
 
-  <div class="col-6 col-md-3">
-    <div class="card h-100">
-      <div class="card-body">
-        <div class="text-muted small">
-          Rejected
+    <div class="col-6 col-md-3">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-muted small">
+            Rejected
+          </div>
+          <strong id="count-rejected" class="h3 d-block mb-0">
+            {{ counts.rejected }}
+          </strong>
         </div>
-
-        <strong id="count-rejected" class="h3 d-block mb-0">
-          {{ counts.rejected }}
-        </strong>
       </div>
     </div>
+
   </div>
 
-</div>
+</section>
 
 <!-- Listing details -->
-<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+<section aria-labelledby="properties-heading">
 
-  <h2 class="h4 mb-0">
-    Your Properties
-  </h2>
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
 
-  <a
-    class="btn btn-outline-primary"
-    href="{{ url_for('landlord_rejections_view') }}"
-  >
-    View Rejection Feedback
-  </a>
+    <h2 id="properties-heading" class="h4 mb-0">
+      Your Properties
+    </h2>
 
-</div>
+    <a
+      class="btn btn-outline-primary"
+      href="{{ url_for('landlord_rejections_view') }}"
+    >
+      View Rejection Feedback
+    </a>
 
-{% if listings %}
+  </div>
 
-  <div class="table-responsive">
-    <table class="table table-hover align-middle">
+  {% if listings %}
 
-      <thead>
-        <tr>
-          <th scope="col">Listing</th>
-          <th scope="col">Location</th>
-          <th scope="col">Monthly Rent</th>
-          <th scope="col">Status</th>
-          <th scope="col">Actions</th>
-        </tr>
-      </thead>
+    <p class="text-muted small">
+      On smaller screens, scroll horizontally within
+      the table to view listing actions.
+    </p>
 
-      <tbody>
+    <div
+      class="table-responsive"
+      role="region"
+      aria-label="Your accommodation listings and available actions"
+      tabindex="0"
+    >
 
-        {% for listing in listings %}
+      <table
+        class="table table-hover align-middle"
+        style="min-width: 720px;"
+      >
 
+        <caption class="visually-hidden">
+          Your accommodation properties, status,
+          rental prices, and available actions.
+        </caption>
+
+        <thead>
           <tr>
+            <th scope="col">Listing</th>
+            <th scope="col">Location</th>
+            <th scope="col">Monthly Rent</th>
+            <th scope="col">Status</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
 
-            <td>
-              <strong>
-                {{ listing.title|e }}
-              </strong>
+        <tbody>
 
-              <div class="text-muted small">
-                ID: {{ listing.id }}
-              </div>
-            </td>
+          {% for listing in listings %}
 
-            <td>
-              {{ listing.area|replace('_', ' ')|title|e }}
-            </td>
+            <tr>
 
-            <td>
-              TT${{ "{:,}".format(listing.price) }}
-            </td>
+              <td>
 
-            <td>
+                <strong>{{ listing.title|e }}</strong>
 
-              {% if listing.status == 'pending' %}
-
-                <span class="badge bg-warning text-dark">
-                  Pending
-                </span>
-
-              {% elif listing.status == 'provisional' %}
-
-                <span class="badge bg-info text-dark">
-                  Provisional
-                </span>
-
-              {% elif listing.status == 'approved' %}
-
-                <span class="badge bg-primary">
-                  Approved
-                </span>
-
-              {% elif listing.status == 'active' %}
-
-                <span class="badge bg-success">
-                  Active
-                </span>
-
-              {% elif listing.status == 'inactive' %}
-
-                <span class="badge bg-secondary">
-                  Inactive
-                </span>
-
-              {% elif listing.status == 'rejected' %}
-
-                <span class="badge bg-danger">
-                  Rejected
-                </span>
-
-              {% else %}
-
-                <span class="badge bg-secondary">
-                  {{ listing.status|capitalize|e }}
-                </span>
-
-              {% endif %}
-
-              {% if listing.admin_hold %}
-
-                <div class="small text-danger mt-1">
-                  Administrator hold
+                <div class="text-muted small">
+                  ID: {{ listing.id }}
                 </div>
 
-              {% endif %}
+              </td>
 
-              {% if listing.requires_reverification %}
+              <td>
+                {{ listing.area|replace('_', ' ')|title|e }}
+              </td>
 
-                <div class="small text-warning-emphasis mt-1">
-                  Requires reverification
-                </div>
+              <td>
+                TT${{ "{:,}".format(listing.price) }}
+              </td>
 
-              {% endif %}
+              <td>
 
-              {% if listing.status == 'rejected' %}
+                {% if listing.status == 'pending' %}
 
-                <div class="small mt-2">
-                  <strong>Admin Feedback:</strong>
+                  <span class="badge bg-warning text-dark">
+                    Pending
+                  </span>
 
-                  {{ listing.review_feedback|default("No reason recorded.", true)|e }}
-                </div>
+                {% elif listing.status == 'provisional' %}
 
-              {% endif %}
+                  <span class="badge bg-info text-dark">
+                    Provisional
+                  </span>
 
-            </td>
+                {% elif listing.status == 'approved' %}
 
-            <td>
+                  <span class="badge bg-primary">
+                    Approved
+                  </span>
 
-              <!-- Pending and rejected listings can be edited -->
-              {% if listing.status in ['pending', 'rejected'] %}
+                {% elif listing.status == 'active' %}
 
-                <a
-                  class="btn btn-sm btn-outline-primary"
-                  href="{{ url_for('landlord_edit_view', listing_id=listing.id) }}"
-                >
+                  <span class="badge bg-success">
+                    Active
+                  </span>
 
-                  {% if listing.status == 'rejected' %}
-                    Edit and Resubmit
+                {% elif listing.status == 'inactive' %}
+
+                  <span class="badge bg-secondary">
+                    Inactive
+                  </span>
+
+                {% elif listing.status == 'rejected' %}
+
+                  <span class="badge bg-danger">
+                    Rejected
+                  </span>
+
+                {% else %}
+
+                  <span class="badge bg-secondary">
+                    {{ listing.status|capitalize|e }}
+                  </span>
+
+                {% endif %}
+
+                {% if listing.admin_hold %}
+
+                  <div class="small text-danger mt-1">
+                    Administrator hold
+                  </div>
+
+                {% endif %}
+
+                {% if listing.requires_reverification %}
+
+                  <div class="small text-warning-emphasis mt-1">
+                    Requires reverification
+                  </div>
+
+                {% endif %}
+
+                {% if listing.status == 'rejected' %}
+
+                  <div class="small mt-2">
+                    <strong>Admin Feedback:</strong>
+                    {{ listing.review_feedback|default("No reason recorded.", true)|e }}
+                  </div>
+
+                {% endif %}
+
+              </td>
+
+              <td>
+
+                <!-- Pending and rejected listings -->
+                {% if listing.status in ['pending', 'rejected'] %}
+
+                  <a
+                    class="btn btn-sm btn-outline-primary"
+                    href="{{ url_for('landlord_edit_view', listing_id=listing.id) }}"
+                    aria-label="Edit listing {{ listing.title|e }}"
+                  >
+
+                    {% if listing.status == 'rejected' %}
+                      Edit and Resubmit
+                    {% else %}
+                      Edit Listing
+                    {% endif %}
+
+                  </a>
+
+                {% elif listing.status == 'provisional' %}
+
+                  <span class="text-muted small">
+                    Awaiting verification
+                  </span>
+
+                <!-- Approved listing -->
+                {% elif listing.status == 'approved' %}
+
+                  {% if listing.admin_hold or listing.requires_reverification %}
+
+                    <span class="text-danger small">
+                      Activation restricted by administrator
+                    </span>
+
                   {% else %}
-                    Edit Listing
+
+                    <form
+                      method="post"
+                      action="{{ url_for('landlord_lifecycle_action', listing_id=listing.id) }}"
+                    >
+
+                      <input
+                        type="hidden"
+                        name="csrf_token"
+                        value="{{ csrf_token|e }}"
+                      >
+
+                      <input
+                        type="hidden"
+                        name="action"
+                        value="activate"
+                      >
+
+                      <button
+                        type="submit"
+                        class="btn btn-sm btn-success"
+                        aria-label="Activate listing {{ listing.title|e }}"
+                      >
+                        Activate Listing
+                      </button>
+
+                    </form>
+
                   {% endif %}
 
-                </a>
-
-              <!-- Provisional listings await final approval -->
-              {% elif listing.status == 'provisional' %}
-
-                <span class="text-muted small">
-                  Awaiting verification
-                </span>
-
-              <!-- Approved listings can be activated -->
-              {% elif listing.status == 'approved' %}
-
-                {% if listing.admin_hold or listing.requires_reverification %}
-
-                  <span class="text-danger small">
-                    Activation restricted by administrator
-                  </span>
-
-                {% else %}
+                <!-- Active listing -->
+                {% elif listing.status == 'active' %}
 
                   <form
                     method="post"
@@ -265,131 +317,107 @@
                     <input
                       type="hidden"
                       name="action"
-                      value="activate"
+                      value="deactivate"
                     >
 
                     <button
                       type="submit"
-                      class="btn btn-sm btn-success"
+                      class="btn btn-sm btn-outline-danger"
+                      aria-label="Deactivate listing {{ listing.title|e }}"
                     >
-                      Activate Listing
+                      Deactivate Listing
                     </button>
 
                   </form>
 
-                {% endif %}
+                <!-- Inactive listing -->
+                {% elif listing.status == 'inactive' %}
 
-              <!-- Active listings can be deactivated -->
-              {% elif listing.status == 'active' %}
+                  {% if listing.admin_hold or listing.requires_reverification %}
 
-                <form
-                  method="post"
-                  action="{{ url_for('landlord_lifecycle_action', listing_id=listing.id) }}"
-                >
+                    <span class="text-danger small">
+                      Reactivation blocked by administrator
+                    </span>
 
-                  <input
-                    type="hidden"
-                    name="csrf_token"
-                    value="{{ csrf_token|e }}"
-                  >
+                  {% else %}
 
-                  <input
-                    type="hidden"
-                    name="action"
-                    value="deactivate"
-                  >
+                    <form
+                      method="post"
+                      action="{{ url_for('landlord_lifecycle_action', listing_id=listing.id) }}"
+                    >
 
-                  <button
-                    type="submit"
-                    class="btn btn-sm btn-outline-danger"
-                  >
-                    Deactivate Listing
-                  </button>
+                      <input
+                        type="hidden"
+                        name="csrf_token"
+                        value="{{ csrf_token|e }}"
+                      >
 
-                </form>
+                      <input
+                        type="hidden"
+                        name="action"
+                        value="activate"
+                      >
 
-              <!-- Inactive listings can be reactivated if permitted -->
-              {% elif listing.status == 'inactive' %}
+                      <button
+                        type="submit"
+                        class="btn btn-sm btn-success"
+                        aria-label="Reactivate listing {{ listing.title|e }}"
+                      >
+                        Reactivate Listing
+                      </button>
 
-                {% if listing.admin_hold or listing.requires_reverification %}
+                    </form>
 
-                  <span class="text-danger small">
-                    Reactivation blocked by administrator
-                  </span>
+                  {% endif %}
 
                 {% else %}
 
-                  <form
-                    method="post"
-                    action="{{ url_for('landlord_lifecycle_action', listing_id=listing.id) }}"
-                  >
-
-                    <input
-                      type="hidden"
-                      name="csrf_token"
-                      value="{{ csrf_token|e }}"
-                    >
-
-                    <input
-                      type="hidden"
-                      name="action"
-                      value="activate"
-                    >
-
-                    <button
-                      type="submit"
-                      class="btn btn-sm btn-success"
-                    >
-                      Reactivate Listing
-                    </button>
-
-                  </form>
+                  <span class="text-muted small">
+                    No actions available
+                  </span>
 
                 {% endif %}
 
-              {% else %}
+              </td>
 
-                <span class="text-muted small">
-                  No actions available
-                </span>
+            </tr>
 
-              {% endif %}
+          {% endfor %}
 
-            </td>
+        </tbody>
 
-          </tr>
-
-        {% endfor %}
-
-      </tbody>
-
-    </table>
-  </div>
-
-{% else %}
-
-  <div class="card">
-    <div class="card-body text-center py-5">
-
-      <h2 class="h5">
-        No Listings Yet
-      </h2>
-
-      <p class="text-muted mx-auto">
-        You have not submitted any accommodation listings.
-        Create your first listing to begin the approval process.
-      </p>
-
-      <a
-        class="btn btn-primary"
-        href="{{ url_for('landlord_submit_view') }}"
-      >
-        Submit Your First Listing
-      </a>
+      </table>
 
     </div>
-  </div>
 
-{% endif %}
+  {% else %}
+
+    <div class="card">
+
+      <div class="card-body text-center py-5">
+
+        <h3 class="h5">
+          No Listings Yet
+        </h3>
+
+        <p class="text-muted mx-auto">
+          You have not submitted any accommodation listings.
+          Create your first listing to begin the approval process.
+        </p>
+
+        <a
+          class="btn btn-primary"
+          href="{{ url_for('landlord_submit_view') }}"
+        >
+          Submit Your First Listing
+        </a>
+
+      </div>
+
+    </div>
+
+  {% endif %}
+
+</section>
 
 {% endblock %}

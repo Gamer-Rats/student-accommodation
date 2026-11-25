@@ -26,144 +26,162 @@
 </div>
 
 <!-- Inbox summary -->
-<div class="row g-3 mb-4">
+<section aria-label="Inbox summary" class="mb-4">
 
-  <div class="col-12 col-md-4">
+  <div class="row g-3">
 
-    <div class="card h-100">
-      <div class="card-body">
+    <div class="col-12 col-md-4">
 
-        <div class="text-muted small">
-          Total Messages
+      <div class="card h-100">
+
+        <div class="card-body">
+
+          <div class="text-muted small">
+            Total Messages
+          </div>
+
+          <strong
+            class="h3 d-block mb-0"
+            id="message-count"
+          >
+            {{ message_count }}
+          </strong>
+
         </div>
 
-        <strong
-          class="h3 d-block mb-0"
-          id="message-count"
-        >
-          {{ message_count }}
-        </strong>
-
       </div>
+
     </div>
 
   </div>
 
-</div>
+</section>
 
-<!-- Messages -->
-<div class="d-flex align-items-center justify-content-between mb-3">
+<!-- Student inquiries -->
+<section aria-labelledby="inquiries-heading">
 
-  <h2 class="h4 mb-0">
+  <h2 id="inquiries-heading" class="h4 mb-3">
     Student Inquiries
   </h2>
 
-</div>
+  {% if messages %}
 
-{% if messages %}
+    <div class="row g-3">
 
-  <div class="row g-3">
+      {% for message in messages %}
 
-    {% for message in messages %}
+        <div class="col-12">
 
-      <div class="col-12">
+          <article
+            class="card"
+            aria-labelledby="message-sender-{{ message.id }}"
+          >
 
-        <article class="card">
+            <div class="card-body">
 
-          <div class="card-body">
+              <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
 
-            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+                <div>
 
-              <div>
+                  <h3
+                    id="message-sender-{{ message.id }}"
+                    class="h5 mb-1"
+                  >
+                    {{ message.student_name|e }}
+                  </h3>
 
-                <h3 class="h5 mb-1">
-                  {{ message.student_name|e }}
-                </h3>
+                  <p class="text-muted small mb-0">
+                    @{{ message.student_username|e }}
+                  </p>
+
+                </div>
+
+                <span class="badge bg-primary">
+                  Student Inquiry
+                </span>
+
+              </div>
+
+              <div class="mb-3">
+
+                <p class="mb-1">
+                  <strong>Regarding:</strong>
+                  {{ message.listing_title|e }}
+                </p>
 
                 <p class="text-muted small mb-0">
-                  @{{ message.student_username|e }}
+                  Listing ID: {{ message.listing_id }}
                 </p>
 
               </div>
 
-              <span class="badge bg-primary">
-                Student Inquiry
-              </span>
+              <!-- Preserve message formatting -->
+              <div class="border rounded p-3 mb-3 bg-light">
+
+                <p
+                  class="mb-0"
+                  style="white-space: pre-wrap; overflow-wrap: anywhere;"
+                >{{ message.body|e }}</p>
+
+              </div>
+
+              <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+
+                <small class="text-muted">
+
+                  <strong>Received:</strong>
+
+                  <time datetime="{{ message.created_at|e }}">
+                    {{ message.created_at|replace('T', ' ')|e }}
+                  </time>
+
+                </small>
+
+                <small class="text-muted">
+                  Message #{{ message.id }}
+                </small>
+
+              </div>
 
             </div>
 
-            <div class="mb-3">
+          </article>
 
-              <p class="mb-1">
-                <strong>Regarding:</strong>
-                {{ message.listing_title|e }}
-              </p>
+        </div>
 
-              <p class="text-muted small mb-0">
-                Listing ID: {{ message.listing_id }}
-              </p>
-
-            </div>
-
-            <div class="border rounded p-3 mb-3 bg-light">
-
-              <p
-                class="mb-0"
-                style="white-space: pre-wrap; overflow-wrap: anywhere;"
-              >{{ message.body|e }}</p>
-
-            </div>
-
-            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
-
-              <small class="text-muted">
-                <strong>Received:</strong>
-                {{ message.created_at|replace('T', ' ')|e }}
-              </small>
-
-              <small class="text-muted">
-                Message #{{ message.id }}
-              </small>
-
-            </div>
-
-          </div>
-
-        </article>
-
-      </div>
-
-    {% endfor %}
-
-  </div>
-
-{% else %}
-
-  <div class="card">
-
-    <div class="card-body text-center py-5">
-
-      <h2 class="h5">
-        No Messages Yet
-      </h2>
-
-      <p class="text-muted mb-3">
-        You have not received any student inquiries.
-        Messages sent about your accommodation listings
-        will appear here.
-      </p>
-
-      <a
-        class="btn btn-primary"
-        href="{{ url_for('landlord_listings_view') }}"
-      >
-        View My Listings
-      </a>
+      {% endfor %}
 
     </div>
 
-  </div>
+  {% else %}
 
-{% endif %}
+    <div class="card">
+
+      <div class="card-body text-center py-5">
+
+        <h3 class="h5">
+          No Messages Yet
+        </h3>
+
+        <p class="text-muted mb-3">
+          You have not received any student inquiries.
+          Messages sent about your accommodation listings
+          will appear here.
+        </p>
+
+        <a
+          class="btn btn-primary"
+          href="{{ url_for('landlord_listings_view') }}"
+        >
+          View My Listings
+        </a>
+
+      </div>
+
+    </div>
+
+  {% endif %}
+
+</section>
 
 {% endblock %}

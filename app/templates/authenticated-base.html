@@ -1,8 +1,22 @@
 
 {% extends "base.html" %}
 
+{% block external_css %}
+{{ super() }}
+<link
+  rel="stylesheet"
+  href="{{ url_for('static', path='css/accessibility.css') }}"
+>
+{% endblock %}
+
 {% block content %}
+
 <div class="app-shell">
+
+  <!-- Keyboard-accessible skip navigation -->
+  <a class="skip-link" href="#main-content">
+    Skip to main content
+  </a>
 
   <header class="app-topbar">
 
@@ -17,90 +31,118 @@
     {% set current_page = endpoint.__name__ if endpoint else '' %}
     {% set home_route = 'admin_home_view' if user.role == 'admin' else 'user_home_view' %}
 
-    <nav class="app-topnav" aria-label="Main navigation">
+    <!-- Mobile navigation toggle -->
+    <button
+      class="app-nav-toggle"
+      type="button"
+      data-bs-toggle="collapse"
+      data-bs-target="#primary-navigation"
+      aria-controls="primary-navigation"
+      aria-expanded="false"
+      aria-label="Toggle main navigation"
+    >
+      <span aria-hidden="true">&#9776;</span>
+      <span>Menu</span>
+    </button>
 
-      <!-- Common home link -->
-      <a
-        href="{{ url_for(home_route) }}"
-        class="{{ 'is-active' if current_page == home_route else '' }}"
-        {% if current_page == home_route %}aria-current="page"{% endif %}
-      >
-        Home
-      </a>
+    <!-- Responsive navigation container -->
+    <div
+      class="app-nav-panel collapse"
+      id="primary-navigation"
+    >
 
-      <!-- Student navigation -->
-      {% if user.role == 'student' %}
+      <nav class="app-topnav" aria-label="Main navigation">
 
+        <!-- Common home link -->
         <a
-          href="{{ url_for('student_listings_view') }}"
-          class="{{ 'is-active' if current_page == 'student_listings_view' else '' }}"
-          {% if current_page == 'student_listings_view' %}aria-current="page"{% endif %}
+          href="{{ url_for(home_route) }}"
+          class="{{ 'is-active' if current_page == home_route else '' }}"
+          {% if current_page == home_route %}aria-current="page"{% endif %}
         >
-          Browse listings
+          Home
         </a>
 
-      {% endif %}
+        <!-- Student navigation -->
+        {% if user.role == 'student' %}
 
-      <!-- Landlord navigation -->
-      {% if user.role == 'landlord' %}
+          <a
+            href="{{ url_for('student_listings_view') }}"
+            class="{{ 'is-active' if current_page == 'student_listings_view' else '' }}"
+            {% if current_page == 'student_listings_view' %}aria-current="page"{% endif %}
+          >
+            Browse listings
+          </a>
 
-        <a
-          href="{{ url_for('landlord_listings_view') }}"
-          class="{{ 'is-active' if current_page == 'landlord_listings_view' else '' }}"
-          {% if current_page == 'landlord_listings_view' %}aria-current="page"{% endif %}
-        >
-          My Listings
+        {% endif %}
+
+        <!-- Landlord navigation -->
+        {% if user.role == 'landlord' %}
+
+          <a
+            href="{{ url_for('landlord_listings_view') }}"
+            class="{{ 'is-active' if current_page == 'landlord_listings_view' else '' }}"
+            {% if current_page == 'landlord_listings_view' %}aria-current="page"{% endif %}
+          >
+            My Listings
+          </a>
+
+          <a
+            href="{{ url_for('landlord_inbox_view') }}"
+            class="{{ 'is-active' if current_page == 'landlord_inbox_view' else '' }}"
+            {% if current_page == 'landlord_inbox_view' %}aria-current="page"{% endif %}
+          >
+            Inbox
+          </a>
+
+          <a
+            href="{{ url_for('landlord_rejections_view') }}"
+            class="{{ 'is-active' if current_page == 'landlord_rejections_view' else '' }}"
+            {% if current_page == 'landlord_rejections_view' %}aria-current="page"{% endif %}
+          >
+            Rejected listings
+          </a>
+
+        {% endif %}
+
+        <!-- Administrator navigation -->
+        {% if user.role == 'admin' %}
+
+          <a
+            href="{{ url_for('admin_listings_view') }}"
+            class="{{ 'is-active' if current_page == 'admin_listings_view' else '' }}"
+            {% if current_page == 'admin_listings_view' %}aria-current="page"{% endif %}
+          >
+            All listings
+          </a>
+
+        {% endif %}
+
+        <!-- Shared navigation links -->
+        <a href="{{ url_for('swagger_ui_html') }}">
+          API docs
         </a>
 
-        <a
-          href="{{ url_for('landlord_inbox_view') }}"
-          class="{{ 'is-active' if current_page == 'landlord_inbox_view' else '' }}"
-          {% if current_page == 'landlord_inbox_view' %}aria-current="page"{% endif %}
-        >
-          Inbox
+        <a href="{{ url_for('logout') }}">
+          Sign out
         </a>
 
-        <a
-          href="{{ url_for('landlord_rejections_view') }}"
-          class="{{ 'is-active' if current_page == 'landlord_rejections_view' else '' }}"
-          {% if current_page == 'landlord_rejections_view' %}aria-current="page"{% endif %}
-        >
-          Rejected listings
-        </a>
+        <span class="app-user">
+          {{ user.username|e }}
+        </span>
 
-      {% endif %}
+      </nav>
 
-      <!-- Administrator navigation -->
-      {% if user.role == 'admin' %}
+    </div>
 
-        <a
-          href="{{ url_for('admin_listings_view') }}"
-          class="{{ 'is-active' if current_page == 'admin_listings_view' else '' }}"
-          {% if current_page == 'admin_listings_view' %}aria-current="page"{% endif %}
-        >
-          All listings
-        </a>
-
-      {% endif %}
-
-      <!-- Shared navigation links -->
-      <a href="{{ url_for('swagger_ui_html') }}">
-        API docs
-      </a>
-
-      <a href="{{ url_for('logout') }}">
-        Sign out
-      </a>
-
-      <span class="app-user">
-        {{ user.username|e }}
-      </span>
-
-    </nav>
   </header>
 
-  <main class="app-main">
+  <main
+    class="app-main"
+    id="main-content"
+    tabindex="-1"
+  >
 
+    <!-- Accessible feedback messages -->
     {% for message in get_flashed_messages(request) %}
 
       <div
@@ -119,4 +161,5 @@
 </div>
 
 {% block subpage_scripts %}{% endblock %}
+
 {% endblock %}
