@@ -319,7 +319,7 @@ def test_api_uses_correct_amenity_filter(
         area=None,
         max_price=None,
         amenity="PARKING",
-        x_user_id="100",
+        actor={"id": 100, "role": "student"},
     )
 
     assert result["ok"] is True

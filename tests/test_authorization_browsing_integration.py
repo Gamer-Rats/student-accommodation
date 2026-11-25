@@ -1,11 +1,11 @@
 """API integration tests for permissions, browsing, and messaging.
 
 Tests use the real accommodation API router and an isolated in-memory database.
-The starter project's X-User-Id header is mocked as the user lookup mechanism;
-these tests do not establish that the header is secure authentication.
+These tests use signed Bearer tokens and reject impersonation via X-User-Id.
 """
 
 import pytest
+from app.utilities.security import create_access_token
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
@@ -49,7 +49,7 @@ def api_setup(test_session, monkeypatch):
     client = TestClient(test_app)
 
     def headers(user_id):
-        return {"X-User-Id": str(user_id)}
+        return {"Authorization": "Bearer " + create_access_token({"sub": str(user_id)})}
 
     def create_listing(**changes):
         data = {
@@ -120,9 +120,9 @@ def test_missing_user_header_is_rejected(api_setup, method, path, body):
 
 def test_invalid_user_header_is_rejected(api_setup):
     response = api_setup["client"].get(
-        "/api/student/listings", headers={"X-User-Id": "not-a-number"}
+        "/api/student/listings", headers={"Authorization": "Bearer not-a-token"}
     )
-    assert response.status_code == 400
+    assert response.status_code == 401
 
 
 @pytest.mark.parametrize("user_id", [1, 4, 5, 999])
@@ -132,8 +132,11 @@ def test_only_landlords_can_submit(api_setup, user_id):
         headers=api_setup["headers"](user_id),
         json=listing_payload(),
     )
-    assert response.status_code == 400
-    assert response.json()["detail"] == "landlords only"
+    if user_id == 999:
+        assert response.status_code == 401
+    else:
+        assert response.status_code == 400
+        assert response.json()["detail"] == "landlords only"
 
 
 @pytest.mark.parametrize(
@@ -169,7 +172,7 @@ def test_invalid_submission_is_rejected(api_setup, changes):
 
 @pytest.mark.parametrize(
     "user_id,status",
-    [(1, 200), (2, 403), (4, 403), (999, 403)],
+    [(1, 200), (2, 403), (4, 403), (999, 401)],
 )
 def test_admin_listing_endpoint_requires_admin(api_setup, user_id, status):
     api_setup["create"]()
@@ -208,7 +211,7 @@ def test_ineligible_users_cannot_browse(api_setup, user_id):
     response = api_setup["client"].get(
         "/api/student/listings", headers=api_setup["headers"](user_id)
     )
-    assert response.status_code == 403
+    assert response.status_code == (401 if user_id == 999 else 403)
     assert "listings" not in response.json()
 
 
@@ -364,7 +367,7 @@ def test_ineligible_user_cannot_message(api_setup, student_id):
         "/api/student/messages", headers=api_setup["headers"](student_id),
         json={"listing_id": listing_id, "body": "Hi"},
     )
-    assert response.status_code == 400
+    assert response.status_code == (401 if student_id == 999 else 400)
     assert api_setup["message_count"]() == 0
 
 
