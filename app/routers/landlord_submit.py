@@ -1,5 +1,5 @@
 
-"""Task #42: Landlord accommodation listing submission."""
+"""Task #52: Validated landlord listing submission."""
 
 import secrets
 
@@ -10,6 +10,9 @@ from app.dependencies.auth import AuthDep
 from app.services import listings
 from app.services.location_rules import ALLOWED_AREAS
 from app.utilities.flash import flash
+from app.utilities.browser_validation import (
+    validate_listing_form,
+)
 
 from . import router, templates
 
@@ -18,7 +21,7 @@ CSRF_SESSION_KEY = "landlord_submit_csrf"
 
 
 def _require_landlord(user):
-    """Only authenticated landlords may submit listings."""
+    """Only landlords may submit listings."""
 
     if user.role != "landlord":
         raise HTTPException(
@@ -28,7 +31,7 @@ def _require_landlord(user):
 
 
 def _get_csrf_token(request: Request) -> str:
-    """Create or reuse a security token for the form."""
+    """Create or retrieve the form security token."""
 
     token = request.session.get(CSRF_SESSION_KEY)
 
@@ -43,7 +46,7 @@ def _check_csrf_token(
     request: Request,
     submitted_token: str,
 ):
-    """Reject requests with invalid security tokens."""
+    """Reject missing or invalid security tokens."""
 
     expected = request.session.get(CSRF_SESSION_KEY)
 
@@ -70,7 +73,7 @@ def landlord_submit_view(
     request: Request,
     user: AuthDep,
 ):
-    """Show the accommodation submission form."""
+    """Display the listing submission form."""
 
     _require_landlord(user)
 
@@ -93,29 +96,40 @@ def landlord_submit_action(
     request: Request,
     user: AuthDep,
     csrf_token: str = Form(default=""),
-    title: str = Form(),
-    area: str = Form(),
-    price: str = Form(),
+    title: str = Form(default=""),
+    area: str = Form(default=""),
+    price: str = Form(default=""),
     amenities: str = Form(default=""),
-    contact_phone: str = Form(),
-    contact_email: str = Form(),
+    contact_phone: str = Form(default=""),
+    contact_email: str = Form(default=""),
     photos: str = Form(default=""),
 ):
-    """Validate and submit an accommodation listing."""
+    """Validate and submit a landlord accommodation listing."""
 
+    # Authorization is always checked first.
     _require_landlord(user)
+
+    # Preserve existing CSRF protection.
     _check_csrf_token(request, csrf_token)
 
     form_url = request.url_for("landlord_submit_view")
 
-    title = title.strip()
-    contact_phone = contact_phone.strip()
-    contact_email = contact_email.strip()
+    # Shared validation.
+    validation = validate_listing_form(
+        title=title,
+        area=area,
+        price=price,
+        amenities=amenities,
+        contact_phone=contact_phone,
+        contact_email=contact_email,
+        photos=photos,
+    )
 
-    if not title or len(title) > 200:
+    # Stop before any database operation if invalid.
+    if not validation["ok"]:
         flash(
             request,
-            "Listing title must contain 1 to 200 characters.",
+            validation["error"],
             "danger",
         )
 
@@ -124,62 +138,21 @@ def landlord_submit_action(
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
-    if not contact_phone or not contact_email:
-        flash(
-            request,
-            "Contact phone and email are required.",
-            "danger",
-        )
-
-        return RedirectResponse(
-            url=str(form_url),
-            status_code=status.HTTP_303_SEE_OTHER,
-        )
-
-    try:
-        numeric_price = int(price)
-
-    except ValueError:
-        flash(
-            request,
-            "Monthly rent must be a whole number.",
-            "danger",
-        )
-
-        return RedirectResponse(
-            url=str(form_url),
-            status_code=status.HTTP_303_SEE_OTHER,
-        )
-
-    if numeric_price <= 0:
-        flash(
-            request,
-            "Monthly rent must be greater than zero.",
-            "danger",
-        )
-
-        return RedirectResponse(
-            url=str(form_url),
-            status_code=status.HTTP_303_SEE_OTHER,
-        )
+    # Validated, normalized values only.
+    clean_data = validation["data"]
 
     result = listings.submit_listing(
         user.id,
-        title=title,
-        area=area,
-        price=numeric_price,
-        amenities=amenities.strip(),
-        contact_phone=contact_phone,
-        contact_email=contact_email,
-        photos=photos.strip(),
+        **clean_data,
     )
 
     if not result["ok"]:
+        # Avoid exposing internal service details.
         flash(
             request,
-            result.get(
-                "error",
-                "Unable to submit accommodation listing.",
+            (
+                "Unable to submit accommodation listing. "
+                "Please review your details and try again."
             ),
             "danger",
         )
@@ -189,6 +162,7 @@ def landlord_submit_action(
             status_code=status.HTTP_303_SEE_OTHER,
         )
 
+    # Success feedback is shown only after saving.
     flash(
         request,
         "Accommodation listing submitted successfully. "
@@ -197,6 +171,8 @@ def landlord_submit_action(
     )
 
     return RedirectResponse(
-        url=str(request.url_for("landlord_listings_view")),
+        url=str(
+            request.url_for("landlord_listings_view")
+        ),
         status_code=status.HTTP_303_SEE_OTHER,
     )

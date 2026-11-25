@@ -340,3 +340,227 @@ def test_feedback_is_html_escaped(edit_setup):
     assert response.status_code == 200
     assert "<script>" not in response.text
     assert "&lt;script&gt;" in response.text
+
+
+# --------------------------------------------------
+# Task #52: Standardized browser validation tests
+# --------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "changes,expected_message",
+    [
+        (
+            {"title": ""},
+            "Listing title is required.",
+        ),
+        (
+            {"title": "   "},
+            "Listing title is required.",
+        ),
+        (
+            {"title": "A" * 201},
+            "Listing title must not exceed 200 characters.",
+        ),
+        (
+            {"area": "arima"},
+            "Accommodation location must be St. Augustine or Mount Hope.",
+        ),
+        (
+            {"area": ""},
+            "Accommodation location must be St. Augustine or Mount Hope.",
+        ),
+        (
+            {"price": "abc"},
+            "Monthly rent must be a whole number.",
+        ),
+        (
+            {"price": "0"},
+            "Monthly rent must be greater than zero.",
+        ),
+        (
+            {"price": "-100"},
+            "Monthly rent must be greater than zero.",
+        ),
+        (
+            {"price": "1200.50"},
+            "Monthly rent must be a whole number.",
+        ),
+        (
+            {"contact_phone": "   "},
+            "Contact phone number is required.",
+        ),
+        (
+            {"contact_email": ""},
+            "Contact email address is required.",
+        ),
+        (
+            {"contact_email": "not-an-email"},
+            "Enter a valid contact email address.",
+        ),
+    ],
+)
+def test_invalid_edit_preserves_entire_listing(
+    edit_setup,
+    changes,
+    expected_message,
+):
+    """Invalid input must never partially modify stored data."""
+
+    setup = edit_setup
+
+    listing_id = setup["create"](
+        status="pending",
+        feedback="",
+    )
+
+    token = setup["csrf_for"](listing_id)
+
+    before = setup["stored"](listing_id).copy()
+
+    response = setup["client"].post(
+        f"/app/landlord/listings/{listing_id}/edit",
+        data=setup["form_data"](token, **changes),
+    )
+
+    assert response.status_code == 303
+
+    assert response.headers["location"].endswith(
+        f"/app/landlord/listings/{listing_id}/edit"
+    )
+
+    after = setup["stored"](listing_id)
+
+    # Every persisted field must remain unchanged.
+    assert after == before
+
+    # The user should receive meaningful feedback.
+    page = setup["client"].get(
+        f"/app/landlord/listings/{listing_id}/edit"
+    )
+
+    assert page.status_code == 200
+    assert expected_message in page.text
+
+    # Invalid submissions must not show success.
+    assert (
+        "Listing details updated successfully."
+        not in page.text
+    )
+
+
+@pytest.mark.parametrize(
+    "missing_field,expected_message",
+    [
+        ("title", "Listing title is required."),
+        (
+            "contact_phone",
+            "Contact phone number is required.",
+        ),
+        (
+            "contact_email",
+            "Contact email address is required.",
+        ),
+    ],
+)
+def test_missing_edit_fields_show_feedback(
+    edit_setup,
+    missing_field,
+    expected_message,
+):
+    """Missing form fields should not produce a generic 422."""
+
+    setup = edit_setup
+
+    listing_id = setup["create"](
+        status="pending",
+        feedback="",
+    )
+
+    token = setup["csrf_for"](listing_id)
+
+    before = setup["stored"](listing_id).copy()
+
+    data = setup["form_data"](token)
+
+    # Simulate the browser omitting a required field.
+    data.pop(missing_field)
+
+    response = setup["client"].post(
+        f"/app/landlord/listings/{listing_id}/edit",
+        data=data,
+    )
+
+    assert response.status_code == 303
+
+    assert setup["stored"](listing_id) == before
+
+    page = setup["client"].get(
+        f"/app/landlord/listings/{listing_id}/edit"
+    )
+
+    assert page.status_code == 200
+    assert expected_message in page.text
+
+
+def test_valid_edit_displays_success_feedback(edit_setup):
+    """Valid edits are saved and receive accurate confirmation."""
+
+    setup = edit_setup
+
+    listing_id = setup["create"](
+        status="pending",
+        feedback="",
+    )
+
+    token = setup["csrf_for"](listing_id)
+
+    response = setup["client"].post(
+        f"/app/landlord/listings/{listing_id}/edit",
+        data=setup["form_data"](
+            token,
+            title="  Updated Apartment  ",
+            price="2700",
+        ),
+    )
+
+    assert response.status_code == 303
+
+    saved = setup["stored"](listing_id)
+
+    assert saved["title"] == "Updated Apartment"
+    assert saved["price"] == 2700
+    assert saved["status"] == "pending"
+
+    page = setup["client"].get(
+        f"/app/landlord/listings/{listing_id}/edit"
+    )
+
+    assert page.status_code == 200
+    assert (
+        "Listing details updated successfully."
+        in page.text
+    )
+
+
+def test_missing_csrf_does_not_change_listing(edit_setup):
+    """Security validation must prevent updates."""
+
+    setup = edit_setup
+
+    listing_id = setup["create"](
+        status="pending",
+        feedback="",
+    )
+
+    setup["csrf_for"](listing_id)
+
+    before = setup["stored"](listing_id).copy()
+
+    response = setup["client"].post(
+        f"/app/landlord/listings/{listing_id}/edit",
+        data=setup["form_data"](""),
+    )
+
+    assert response.status_code == 403
+    assert setup["stored"](listing_id) == before

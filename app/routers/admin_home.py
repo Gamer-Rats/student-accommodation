@@ -1,5 +1,5 @@
 
-"""Administrator pages and listing review actions."""
+"""Task #52: Administrator review validation and feedback."""
 
 import secrets
 
@@ -13,6 +13,7 @@ from app.services.admin_hold_policy import (
     complete_reverification,
 )
 from app.services.lifecycle import STATES
+from app.services.location_rules import LOCATION_ERROR
 from app.utilities.flash import flash
 
 from . import router, templates
@@ -29,9 +30,38 @@ ADMIN_REVIEW_ACTIONS = {
     "complete_reverification",
 }
 
+MAX_REJECTION_FEEDBACK = 1000
+
+SUCCESS_MESSAGES = {
+    "verify": (
+        "Listing verified and approved successfully."
+    ),
+    "reject": (
+        "Listing rejected. The landlord can now view "
+        "the administrator's feedback."
+    ),
+    "provisionally_accept": (
+        "Listing provisionally accepted. "
+        "Final administrator verification is still required."
+    ),
+    "force_deactivate": (
+        "Listing forcibly deactivated and placed "
+        "on administrative hold."
+    ),
+    "release_admin_hold": (
+        "Administrative hold released. "
+        "The listing now requires reverification "
+        "before it can be reactivated."
+    ),
+    "complete_reverification": (
+        "Listing reverification completed successfully. "
+        "The landlord may now reactivate the listing."
+    ),
+}
+
 
 def _get_review_token(request: Request) -> str:
-    """Create or reuse a CSRF token for admin forms."""
+    """Create or reuse a CSRF token for administrator forms."""
 
     token = request.session.get(ADMIN_REVIEW_CSRF_KEY)
 
@@ -46,7 +76,7 @@ def _check_review_token(
     request: Request,
     submitted_token: str,
 ) -> None:
-    """Reject requests with invalid security tokens."""
+    """Reject missing or invalid form security tokens."""
 
     expected = request.session.get(ADMIN_REVIEW_CSRF_KEY)
 
@@ -64,7 +94,85 @@ def _check_review_token(
         )
 
 
-@router.get("/admin", response_class=HTMLResponse)
+def _review_redirect(request: Request):
+    """Return to the administrator listing dashboard."""
+
+    return RedirectResponse(
+        url=str(request.url_for("admin_listings_view")),
+        status_code=status.HTTP_303_SEE_OTHER,
+    )
+
+
+def _safe_review_error(error: str | None) -> str:
+    """Convert known service errors to safe browser messages."""
+
+    if error == "rejection feedback is required":
+        return "rejection feedback is required"
+
+    if error == "rejection feedback is too long":
+        return (
+            "Rejection feedback must not exceed "
+            "1000 characters."
+        )
+
+    if error == LOCATION_ERROR:
+        return (
+            "Accommodation location must be "
+            "St. Augustine or Mount Hope."
+        )
+
+    if error == "price must be positive":
+        return "Monthly rent must be greater than zero."
+
+    if error and error.startswith("Cannot perform"):
+        return (
+            "Cannot perform this action in the "
+            "listing's current state."
+        )
+
+    known_errors = {
+        "Only inactive listings can have "
+        "administrative holds released": (
+            "Only inactive listings can have "
+            "administrative holds released."
+        ),
+        "listing is not on administrative hold": (
+            "This listing is not on administrative hold."
+        ),
+        "Only inactive listings can complete "
+        "this reverification workflow": (
+            "Only inactive listings can be reverified."
+        ),
+        "Release the administrative hold "
+        "before completing reverification": (
+            "Release the administrative hold "
+            "before completing reverification."
+        ),
+        "listing does not require reverification": (
+            "This listing does not require reverification."
+        ),
+        "title is required": (
+            "Listing title is required."
+        ),
+        "contact_phone is required": (
+            "Contact phone number is required."
+        ),
+        "contact_email is required": (
+            "Contact email address is required."
+        ),
+    }
+
+    return known_errors.get(
+        error,
+        "Unable to complete this action. "
+        "Review the listing status and try again.",
+    )
+
+
+@router.get(
+    "/admin",
+    response_class=HTMLResponse,
+)
 async def admin_home_view(
     request: Request,
     user: AdminDep,
@@ -108,12 +216,14 @@ def admin_review_action(
     request: Request,
     listing_id: int,
     user: AdminDep,
-    action: str = Form(),
+    action: str = Form(default=""),
     csrf_token: str = Form(default=""),
     review_feedback: str = Form(default=""),
 ):
-    """Apply administrator actions through authorized workflows."""
+    """Validate and perform administrator listing actions."""
 
+    # AdminDep enforces administrator authorization.
+    # Check CSRF before processing the submitted action.
     _check_review_token(request, csrf_token)
 
     if action not in ADMIN_REVIEW_ACTIONS:
@@ -122,7 +232,35 @@ def admin_review_action(
             detail="Invalid review action",
         )
 
-    # Task #49: Administrative hold management.
+    feedback = review_feedback.strip()
+
+    # Rejection requires meaningful feedback.
+    if action == "reject":
+        if not feedback:
+            flash(
+                request,
+                "rejection feedback is required",
+                "danger",
+            )
+            return _review_redirect(request)
+
+        if len(feedback) > MAX_REJECTION_FEEDBACK:
+            flash(
+                request,
+                "Rejection feedback must not exceed "
+                "1000 characters.",
+                "danger",
+            )
+            return _review_redirect(request)
+
+    elif feedback:
+        # Feedback must not accompany unrelated actions.
+        raise HTTPException(
+            status_code=400,
+            detail="Feedback is only allowed when rejecting.",
+        )
+
+    # Preserve the existing administrator hold policies.
     if action == "release_admin_hold":
         result = release_admin_hold(
             user.id,
@@ -136,77 +274,44 @@ def admin_review_action(
         )
 
     else:
-        # Existing State Pattern lifecycle actions.
         result = listings.transition(
             user.id,
             listing_id,
             action,
             review_feedback=(
-                review_feedback
-                if action == "reject"
-                else None
+                feedback if action == "reject" else None
             ),
         )
 
     if not result["ok"]:
+        error = result.get("error")
+
+        if error == "listing not found":
+            raise HTTPException(
+                status_code=404,
+                detail="Listing not found",
+            )
+
+        if error == "admin only":
+            raise HTTPException(
+                status_code=403,
+                detail="Access denied",
+            )
+
+        # Never expose unexpected internal service errors.
         flash(
             request,
-            result.get(
-                "error",
-                "Review action failed.",
-            ),
+            _safe_review_error(error),
             "danger",
         )
 
-    elif action == "verify":
-        flash(
-            request,
-            "Listing verified and approved successfully.",
-            "success",
-        )
+        return _review_redirect(request)
 
-    elif action == "reject":
-        flash(
-            request,
-            "Listing rejected. The landlord can now view "
-            "the administrator's feedback.",
-            "success",
-        )
-
-    elif action == "provisionally_accept":
-        flash(
-            request,
-            "Listing provisionally accepted. "
-            "Final administrator verification is still required.",
-            "success",
-        )
-
-    elif action == "force_deactivate":
-        flash(
-            request,
-            "Listing forcibly deactivated and placed "
-            "on administrative hold.",
-            "success",
-        )
-
-    elif action == "release_admin_hold":
-        flash(
-            request,
-            "Administrative hold released. "
-            "The listing now requires reverification "
-            "before it can be reactivated.",
-            "success",
-        )
-
-    elif action == "complete_reverification":
-        flash(
-            request,
-            "Listing reverification completed successfully. "
-            "The landlord may now reactivate the listing.",
-            "success",
-        )
-
-    return RedirectResponse(
-        url=str(request.url_for("admin_listings_view")),
-        status_code=status.HTTP_303_SEE_OTHER,
+    # Confirm success only when the service succeeds.
+    flash(
+        request,
+        SUCCESS_MESSAGES[action],
+        "success",
     )
+
+    return _review_redirect(request)
