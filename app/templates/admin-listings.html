@@ -1,42 +1,251 @@
 {% extends "authenticated-base.html" %}
-{% block title %}All listings · NestLink{% endblock %}
+{% block title %}Review Listings · NestLink{% endblock %}
 
 {% block subpage_content %}
-<h1>All listings</h1>
-<form method="get" action="{{ url_for('admin_listings_view') }}" class="d-flex flex-wrap align-items-center gap-2 mb-3">
-  <label for="status">Status</label>
-  <select class="form-select w-auto" id="status" name="status">
-    <option value="">All statuses</option>
-    {% for state in states %}
-      <option value="{{ state|e }}"{% if state == selected_status %} selected{% endif %}>{{ state|capitalize|e }}</option>
-    {% endfor %}
-  </select>
-  <button class="btn btn-primary" type="submit">Filter</button>
+
+<div class="mb-4">
+  <h1>Manage Accommodation Listings</h1>
+
+  <p class="text-muted">
+    Review landlord submissions, verify valid listings,
+    or reject submissions with an explanation.
+  </p>
+</div>
+
+<!-- Status filter -->
+<form
+  method="get"
+  action="{{ url_for('admin_listings_view') }}"
+  class="d-flex flex-wrap align-items-end gap-2 mb-4"
+>
+  <div>
+    <label for="status" class="form-label">
+      Filter by Status
+    </label>
+
+    <select
+      class="form-select"
+      id="status"
+      name="status"
+    >
+      <option value="">All statuses</option>
+
+      {% for state in states %}
+        <option
+          value="{{ state|e }}"
+          {% if state == selected_status %}selected{% endif %}
+        >
+          {{ state|capitalize|e }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <button class="btn btn-primary" type="submit">
+    Filter
+  </button>
 </form>
+
 {% if listings %}
+
   <div class="table-responsive">
-    <table class="table align-middle">
+    <table class="table table-hover align-middle">
+
       <thead>
-        <tr><th scope="col">ID</th><th scope="col">Listing</th><th scope="col">Area</th><th scope="col">Price</th><th scope="col">Status</th></tr>
+        <tr>
+          <th scope="col">ID</th>
+          <th scope="col">Listing</th>
+          <th scope="col">Area</th>
+          <th scope="col">Price</th>
+          <th scope="col">Status</th>
+          <th scope="col">Review Actions</th>
+        </tr>
       </thead>
+
       <tbody>
         {% for listing in listings %}
+
           <tr>
-            <td>{{ listing.id }}</td>
-            <td>{{ listing.title|e }}</td>
-            <td>{{ listing.area|replace('_', ' ')|title|e }}</td>
-            <td>TT${{ "{:,}".format(listing.price) }}</td>
+
             <td>
-              {{ listing.status|capitalize|e }}
-              {% if listing.admin_hold %}<div>On hold</div>{% endif %}
-              {% if listing.requires_reverification %}<div>Requires reverification</div>{% endif %}
+              {{ listing.id }}
             </td>
+
+            <td>
+              <strong>{{ listing.title|e }}</strong>
+              <div class="text-muted small">
+                Landlord ID: {{ listing.landlord_id }}
+              </div>
+            </td>
+
+            <td>
+              {{ listing.area|replace('_', ' ')|title|e }}
+            </td>
+
+            <td>
+              TT${{ "{:,}".format(listing.price) }}
+            </td>
+
+            <td>
+
+              {% if listing.status == 'pending' %}
+                <span class="badge bg-warning text-dark">
+                  Pending
+                </span>
+
+              {% elif listing.status == 'provisional' %}
+                <span class="badge bg-info text-dark">
+                  Provisional
+                </span>
+
+              {% elif listing.status == 'approved' %}
+                <span class="badge bg-primary">
+                  Approved
+                </span>
+
+              {% elif listing.status == 'active' %}
+                <span class="badge bg-success">
+                  Active
+                </span>
+
+              {% elif listing.status == 'rejected' %}
+                <span class="badge bg-danger">
+                  Rejected
+                </span>
+
+              {% else %}
+                <span class="badge bg-secondary">
+                  {{ listing.status|capitalize|e }}
+                </span>
+              {% endif %}
+
+              {% if listing.admin_hold %}
+                <div class="small text-danger mt-1">
+                  On administrative hold
+                </div>
+              {% endif %}
+
+              {% if listing.requires_reverification %}
+                <div class="small mt-1">
+                  Requires reverification
+                </div>
+              {% endif %}
+
+              {% if listing.status == 'rejected' %}
+                <div class="small mt-2">
+                  <strong>Rejection reason:</strong>
+                  {{ listing.review_feedback|default("No reason recorded.", true)|e }}
+                </div>
+              {% endif %}
+
+            </td>
+
+            <td>
+
+              <!-- Verify pending or provisional listings -->
+              {% if listing.status in ['pending', 'provisional'] %}
+
+                <form
+                  method="post"
+                  action="{{ url_for('admin_review_action', listing_id=listing.id) }}"
+                  class="mb-3"
+                >
+                  <input
+                    type="hidden"
+                    name="csrf_token"
+                    value="{{ csrf_token|e }}"
+                  >
+
+                  <input
+                    type="hidden"
+                    name="action"
+                    value="verify"
+                  >
+
+                  <button
+                    type="submit"
+                    class="btn btn-sm btn-success"
+                  >
+                    Verify Listing
+                  </button>
+                </form>
+
+              {% endif %}
+
+              <!-- Only pending listings can be rejected -->
+              {% if listing.status == 'pending' %}
+
+                <form
+                  method="post"
+                  action="{{ url_for('admin_review_action', listing_id=listing.id) }}"
+                >
+                  <input
+                    type="hidden"
+                    name="csrf_token"
+                    value="{{ csrf_token|e }}"
+                  >
+
+                  <input
+                    type="hidden"
+                    name="action"
+                    value="reject"
+                  >
+
+                  <label
+                    for="rejection-reason-{{ listing.id }}"
+                    class="form-label small fw-semibold"
+                  >
+                    Rejection Reason
+                  </label>
+
+                  <textarea
+                    id="rejection-reason-{{ listing.id }}"
+                    name="review_feedback"
+                    class="form-control form-control-sm mb-2"
+                    rows="3"
+                    maxlength="1000"
+                    placeholder="Explain why this listing is rejected"
+                    required
+                  ></textarea>
+
+                  <button
+                    type="submit"
+                    class="btn btn-sm btn-outline-danger"
+                  >
+                    Reject Listing
+                  </button>
+                </form>
+
+              {% elif listing.status == 'rejected' %}
+
+                <span class="text-muted small">
+                  Waiting for landlord to resubmit
+                </span>
+
+              {% elif listing.status not in ['pending', 'provisional'] %}
+
+                <span class="text-muted small">
+                  No review action available
+                </span>
+
+              {% endif %}
+
+            </td>
+
           </tr>
+
         {% endfor %}
       </tbody>
+
     </table>
   </div>
+
 {% else %}
-  <p>No listings match this filter.</p>
+
+  <div class="alert alert-info">
+    No listings match the selected filter.
+  </div>
+
 {% endif %}
+
 {% endblock %}
