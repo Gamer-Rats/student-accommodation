@@ -135,3 +135,55 @@ def landlord_rejections_view(
             "listings": rejected,
         },
     )
+
+
+# Task #36 (Sprint 2): Landlord My Listings dashboard
+
+@router.get(
+    "/app/landlord/listings",
+    response_class=HTMLResponse,
+)
+def landlord_listings_view(
+    request: Request,
+    user: AuthDep,
+):
+    """Display all listings owned by the authenticated landlord."""
+
+    if user.role != "landlord":
+        raise HTTPException(
+            status_code=403,
+            detail="landlords only",
+        )
+
+    result = list_for_landlord(user.id)
+
+    if not result["ok"]:
+        raise HTTPException(
+            status_code=403,
+            detail=result["error"],
+        )
+
+    landlord_listings = result["listings"]
+
+    counts = {
+        "total": len(landlord_listings),
+        "pending": 0,
+        "active": 0,
+        "rejected": 0,
+    }
+
+    for listing in landlord_listings:
+        listing_status = listing["status"]
+
+        if listing_status in counts:
+            counts[listing_status] += 1
+
+    return templates.TemplateResponse(
+        request=request,
+        name="landlord-listings.html",
+        context={
+            "user": user,
+            "listings": landlord_listings,
+            "counts": counts,
+        },
+    )
