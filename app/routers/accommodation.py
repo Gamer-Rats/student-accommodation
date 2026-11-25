@@ -43,6 +43,7 @@ class ListingBody(BaseModel):
     photos: str = ""
 
 
+
 class TransitionBody(BaseModel):
     action: str = Field(
         description=(
@@ -50,6 +51,15 @@ class TransitionBody(BaseModel):
             "activate | deactivate | force_deactivate | resubmit"
         )
     )
+
+    review_feedback: str | None = Field(
+        default=None,
+        description=(
+            "Administrator rejection reason. "
+            "Required when action is reject."
+        ),
+    )
+
 
 
 class MessageBody(BaseModel):
@@ -187,6 +197,7 @@ def submit(
     return result
 
 
+
 @router.post("/listings/{listing_id}/transition")
 def transition(
     listing_id: int,
@@ -198,6 +209,7 @@ def transition(
         actor["id"],
         listing_id,
         body.action,
+        review_feedback=body.review_feedback,
     )
 
     if not result.get("ok"):
@@ -207,6 +219,7 @@ def transition(
         )
 
     return result
+
 
 
 @router.get("/student/listings")

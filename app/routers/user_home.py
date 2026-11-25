@@ -95,3 +95,43 @@ def landlord_listings_data(user: AuthDep):
         )
 
     return result
+
+
+@router.get(
+    "/app/landlord/rejections",
+    response_class=HTMLResponse,
+)
+def landlord_rejections_view(
+    request: Request,
+    user: AuthDep,
+):
+    """Show rejected listings belonging to the logged-in landlord."""
+
+    if user.role != "landlord":
+        raise HTTPException(
+            status_code=403,
+            detail="landlords only",
+        )
+
+    result = list_for_landlord(user.id)
+
+    if not result["ok"]:
+        raise HTTPException(
+            status_code=403,
+            detail=result["error"],
+        )
+
+    rejected = [
+        listing
+        for listing in result["listings"]
+        if listing["status"] == "rejected"
+    ]
+
+    return templates.TemplateResponse(
+        request=request,
+        name="landlord-rejections.html",
+        context={
+            "user": user,
+            "listings": rejected,
+        },
+    )

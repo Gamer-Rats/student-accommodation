@@ -1,0 +1,96 @@
+
+{% extends "authenticated-base.html" %}
+
+{% block title %}
+Rejected Listings · NestLink
+{% endblock %}
+
+{% block subpage_content %}
+
+<div class="mb-4">
+  <h1>Rejected Listings</h1>
+
+  <p class="text-muted">
+    Review the administrator's feedback before
+    correcting and resubmitting your listing.
+  </p>
+
+  <a
+    class="btn btn-outline-secondary"
+    href="{{ url_for('user_home_view') }}"
+  >
+    Back to Home
+  </a>
+</div>
+
+{% if listings %}
+
+  <div class="row g-3">
+
+    {% for listing in listings %}
+
+      <div class="col-12">
+
+        <article class="card">
+
+          <div class="card-body">
+
+            <h2 class="h5 card-title">
+              {{ listing.title|e }}
+            </h2>
+
+            <p>
+              <strong>Listing ID:</strong>
+              {{ listing.id }}
+            </p>
+
+            <p>
+              <strong>Status:</strong>
+              <span class="badge bg-danger">
+                Rejected
+              </span>
+            </p>
+
+            <p>
+              <strong>Area:</strong>
+              {{ listing.area|replace('_', ' ')|title|e }}
+            </p>
+
+            <div class="alert alert-warning">
+
+              <strong>Administrator Feedback</strong>
+
+              <p class="mb-0 mt-2">
+                {% if listing.review_feedback %}
+                  {{ listing.review_feedback|e }}
+                {% else %}
+                  No rejection reason was recorded.
+                {% endif %}
+              </p>
+
+            </div>
+
+            <p class="text-muted mb-0">
+              You can correct and resubmit this listing
+              when the editing workflow is available.
+            </p>
+
+          </div>
+
+        </article>
+
+      </div>
+
+    {% endfor %}
+
+  </div>
+
+{% else %}
+
+  <div class="alert alert-info">
+    You do not have any rejected listings.
+  </div>
+
+{% endif %}
+
+{% endblock %}

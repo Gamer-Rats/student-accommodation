@@ -280,17 +280,31 @@ def lifecycle_database(test_session, monkeypatch):
         ("rejected", "resubmit", 2, "pending"),
     ],
 )
+
 def test_valid_transitions_are_persisted(
     lifecycle_database, initial, action, actor_id, expected
 ):
     create, persisted = lifecycle_database
     listing_id = create(initial)
-    result = listings.transition(actor_id, listing_id, action)
+
+    result = listings.transition(
+        actor_id,
+        listing_id,
+        action,
+        review_feedback=(
+            "Please correct the listing details."
+            if action == "reject"
+            else None
+        ),
+    )
+
     assert result["ok"] is True
     assert result["listing"]["status"] == expected
     assert persisted(listing_id)["status"] == expected
+
     if action == "force_deactivate":
         assert persisted(listing_id)["admin_hold"] is True
+
 
 
 @pytest.mark.parametrize(
