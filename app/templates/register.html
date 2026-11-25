@@ -15,6 +15,7 @@
     <p class="auth-tagline">Create an account</p>
 
     <form method="POST" action="{{ url_for('register_view') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token|e }}">
 
       <div class="mb-3">
         <label class="form-label" for="username">Username</label>

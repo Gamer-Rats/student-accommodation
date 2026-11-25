@@ -1,5 +1,5 @@
 
-"""Public student / landlord account registration."""
+"""Public student / landlord registration with CSRF protection."""
 
 import logging
 
@@ -11,22 +11,38 @@ from sqlalchemy.exc import IntegrityError
 from app.dependencies import SessionDep
 from app.repositories.user import UserRepository
 from app.services.auth_service import AuthService
+from app.utilities.csrf import (
+    get_csrf_token,
+    validate_csrf_token,
+)
 from app.utilities.flash import flash
+
 from . import router, templates
 
 
 logger = logging.getLogger(__name__)
 
 
-@router.get("/register", response_class=HTMLResponse)
+@router.get(
+    "/register",
+    response_class=HTMLResponse,
+)
 async def register_view(request: Request):
+    """Show the account registration form."""
+
     return templates.TemplateResponse(
         request=request,
-        name="register.html"
+        name="register.html",
+        context={
+            "csrf_token": get_csrf_token(request),
+        },
     )
 
 
-@router.post("/register", response_class=HTMLResponse)
+@router.post(
+    "/register",
+    response_class=HTMLResponse,
+)
 def signup_user(
     request: Request,
     db: SessionDep,
@@ -36,8 +52,18 @@ def signup_user(
     role: str = Form(),
     entry_path: str = Form(default=""),
     student_id: str = Form(default=""),
+    csrf_token: str = Form(default=""),
 ):
-    service = AuthService(UserRepository(db))
+    """Register a student or landlord after validating CSRF."""
+
+    validate_csrf_token(
+        request,
+        csrf_token,
+    )
+
+    service = AuthService(
+        UserRepository(db)
+    )
 
     try:
         service.register_user(
@@ -50,52 +76,61 @@ def signup_user(
         )
 
     except (ValueError, ValidationError) as exc:
-        flash(request, str(exc), "danger")
+        flash(
+            request,
+            str(exc),
+            "danger",
+        )
 
         return RedirectResponse(
             url=request.url_for("register_view"),
-            status_code=status.HTTP_303_SEE_OTHER
+            status_code=status.HTTP_303_SEE_OTHER,
         )
 
     except IntegrityError:
         flash(
             request,
             "Username or email already exists",
-            "danger"
+            "danger",
         )
 
         return RedirectResponse(
             url=request.url_for("register_view"),
-            status_code=status.HTTP_303_SEE_OTHER
+            status_code=status.HTTP_303_SEE_OTHER,
         )
 
     except Exception:
-        logger.exception("Registration failed unexpectedly")
+        logger.exception(
+            "Registration failed unexpectedly"
+        )
 
         flash(
             request,
-            "Registration could not be completed. Please try again.",
-            "danger"
+            "Registration could not be completed. "
+            "Please try again.",
+            "danger",
         )
 
         return RedirectResponse(
             url=request.url_for("register_view"),
-            status_code=status.HTTP_303_SEE_OTHER
+            status_code=status.HTTP_303_SEE_OTHER,
         )
 
     if role == "student":
         flash(
             request,
-            "Student account created. Enrollment verification "
-            "is required before browsing listings."
+            "Student account created. "
+            "Enrollment verification is required "
+            "before browsing listings.",
         )
+
     else:
         flash(
             request,
-            "Landlord account created. Sign in now!"
+            "Landlord account created. Sign in now!",
         )
 
     return RedirectResponse(
         url=request.url_for("login_view"),
-        status_code=status.HTTP_303_SEE_OTHER
+        status_code=status.HTTP_303_SEE_OTHER,
     )
