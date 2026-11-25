@@ -1,8 +1,9 @@
 
-"""Task #29: role-safe public registration tests."""
+"""Task #29: Role-safe public registration tests."""
+
+import re
 
 import pytest
-
 from fastapi.testclient import TestClient
 from sqlmodel import SQLModel, Session, create_engine, select
 from sqlalchemy.pool import StaticPool
@@ -22,7 +23,7 @@ def isolated_registration_db():
     engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
-        poolclass=StaticPool
+        poolclass=StaticPool,
     )
 
     SQLModel.metadata.create_all(engine)
@@ -35,10 +36,30 @@ def isolated_registration_db():
 
     try:
         yield engine
+
     finally:
         app.dependency_overrides.pop(get_session, None)
         SQLModel.metadata.drop_all(engine)
         engine.dispose()
+
+
+def get_form_csrf_token(client, path):
+    """Retrieve the security token from a browser form."""
+
+    response = client.get(path)
+
+    assert response.status_code == 200
+
+    match = re.search(
+        r'name="csrf_token"\s+value="([^"]+)"',
+        response.text,
+    )
+
+    assert match is not None, (
+        f"CSRF token missing from {path}"
+    )
+
+    return match.group(1)
 
 
 def register(
@@ -49,8 +70,13 @@ def register(
     student_id="202012345",
     username="alice",
     email="alice@example.com",
-    password="secret123"
+    password="secret123",
 ):
+    csrf_token = get_form_csrf_token(
+        client,
+        "/register",
+    )
+
     return client.post(
         "/register",
         data={
@@ -60,14 +86,18 @@ def register(
             "role": role,
             "entry_path": entry_path,
             "student_id": student_id,
+            "csrf_token": csrf_token,
         },
     )
 
 
 def test_student_signup_records_unverified_claim(
-    isolated_registration_db
+    isolated_registration_db,
 ):
-    client = TestClient(app, follow_redirects=False)
+    client = TestClient(
+        app,
+        follow_redirects=False,
+    )
 
     response = register(client)
 
@@ -76,7 +106,9 @@ def test_student_signup_records_unverified_claim(
 
     with Session(isolated_registration_db) as db:
         user = db.exec(
-            select(User).where(User.username == "alice")
+            select(User).where(
+                User.username == "alice"
+            )
         ).one()
 
         claim = db.exec(
@@ -99,15 +131,21 @@ def test_student_signup_records_unverified_claim(
 
         assert verify_password(
             "secret123",
-            user.password
+            user.password,
         )
+
+    login_token = get_form_csrf_token(
+        client,
+        "/login",
+    )
 
     login = client.post(
         "/login",
         data={
             "username": "alice",
-            "password": "secret123"
-        }
+            "password": "secret123",
+            "csrf_token": login_token,
+        },
     )
 
     assert login.status_code == 303
@@ -115,21 +153,26 @@ def test_student_signup_records_unverified_claim(
 
 
 def test_incoming_signup_has_pending_claim_not_provisional_privilege(
-    isolated_registration_db
+    isolated_registration_db,
 ):
-    client = TestClient(app, follow_redirects=False)
+    client = TestClient(
+        app,
+        follow_redirects=False,
+    )
 
     response = register(
         client,
         entry_path="incoming",
-        student_id=""
+        student_id="",
     )
 
     assert response.status_code == 303
 
     with Session(isolated_registration_db) as db:
         user = db.exec(
-            select(User).where(User.username == "alice")
+            select(User).where(
+                User.username == "alice"
+            )
         ).one()
 
         claim = db.exec(
@@ -142,15 +185,18 @@ def test_incoming_signup_has_pending_claim_not_provisional_privilege(
 
 
 def test_landlord_signup_creates_correct_role(
-    isolated_registration_db
+    isolated_registration_db,
 ):
-    client = TestClient(app, follow_redirects=False)
+    client = TestClient(
+        app,
+        follow_redirects=False,
+    )
 
     response = register(
         client,
         role="landlord",
         entry_path="",
-        student_id=""
+        student_id="",
     )
 
     assert response.status_code == 303
@@ -166,90 +212,118 @@ def test_landlord_signup_creates_correct_role(
 
 
 def test_signup_rejects_self_assigned_admin(
-    isolated_registration_db
+    isolated_registration_db,
 ):
-    client = TestClient(app, follow_redirects=False)
+    client = TestClient(
+        app,
+        follow_redirects=False,
+    )
 
     response = register(
         client,
         role="admin",
         entry_path="",
-        student_id=""
+        student_id="",
     )
 
     assert response.status_code == 303
-    assert response.headers["location"].endswith("/register")
+    assert response.headers["location"].endswith(
+        "/register"
+    )
 
     with Session(isolated_registration_db) as db:
         assert db.exec(select(User)).all() == []
 
 
 def test_signup_rejects_missing_student_id(
-    isolated_registration_db
+    isolated_registration_db,
 ):
-    client = TestClient(app, follow_redirects=False)
+    client = TestClient(
+        app,
+        follow_redirects=False,
+    )
 
-    response = register(client, student_id="")
+    response = register(
+        client,
+        student_id="",
+    )
 
     assert response.status_code == 303
-    assert response.headers["location"].endswith("/register")
+    assert response.headers["location"].endswith(
+        "/register"
+    )
 
     with Session(isolated_registration_db) as db:
         assert db.exec(select(User)).all() == []
 
 
 def test_signup_rejects_invalid_email(
-    isolated_registration_db
+    isolated_registration_db,
 ):
-    client = TestClient(app, follow_redirects=False)
+    client = TestClient(
+        app,
+        follow_redirects=False,
+    )
 
     response = register(
         client,
-        email="not-an-email"
+        email="not-an-email",
     )
 
     assert response.status_code == 303
-    assert response.headers["location"].endswith("/register")
+    assert response.headers["location"].endswith(
+        "/register"
+    )
 
     with Session(isolated_registration_db) as db:
         assert db.exec(select(User)).all() == []
 
 
 def test_signup_rejects_duplicate_username(
-    isolated_registration_db
+    isolated_registration_db,
 ):
-    client = TestClient(app, follow_redirects=False)
+    client = TestClient(
+        app,
+        follow_redirects=False,
+    )
 
     assert register(client).status_code == 303
 
     duplicate = register(
         client,
         username="alice",
-        email="alice2@example.com"
+        email="alice2@example.com",
     )
 
     assert duplicate.status_code == 303
-    assert duplicate.headers["location"].endswith("/register")
+    assert duplicate.headers["location"].endswith(
+        "/register"
+    )
 
     with Session(isolated_registration_db) as db:
-        assert len(db.exec(select(User)).all()) == 1
+        assert len(
+            db.exec(select(User)).all()
+        ) == 1
+
         assert len(
             db.exec(select(StudentApplication)).all()
         ) == 1
 
 
 def test_service_rejects_untrusted_role(
-    isolated_registration_db
+    isolated_registration_db,
 ):
     with Session(isolated_registration_db) as db:
-        service = AuthService(UserRepository(db))
+        service = AuthService(
+            UserRepository(db)
+        )
 
         with pytest.raises(ValueError):
             service.register_user(
                 "admin2",
                 "admin2@example.com",
                 "password123",
-                role="admin"
+                role="admin",
             )
 
         assert db.exec(select(User)).all() == []
@@ -265,3 +339,4 @@ def test_register_page_has_role_and_enrollment_controls():
     assert 'value="landlord"' in response.text
     assert 'name="entry_path"' in response.text
     assert 'name="student_id"' in response.text
+    assert 'name="csrf_token"' in response.text
