@@ -1,3 +1,4 @@
+
 {% extends "authenticated-base.html" %}
 
 {% block title %}{{ listing.title|e }} · NestLink{% endblock %}
@@ -41,6 +42,7 @@
 
         <p>
           <strong>Availability:</strong>
+
           <span class="badge bg-success">
             Available
           </span>
@@ -61,15 +63,21 @@
         <h2 class="h5">Amenities</h2>
 
         {% if amenities %}
+
           <ul class="mb-0">
             {% for amenity in amenities %}
+
               <li>{{ amenity|e }}</li>
+
             {% endfor %}
           </ul>
+
         {% else %}
+
           <p class="text-muted mb-0">
             No amenities have been listed.
           </p>
+
         {% endif %}
 
       </div>
@@ -84,6 +92,7 @@
         {% if photo_urls %}
 
           <div class="row g-3">
+
             {% for photo in photo_urls %}
 
               <div class="col-12 col-sm-6">
@@ -96,6 +105,7 @@
               </div>
 
             {% endfor %}
+
           </div>
 
         {% endif %}
@@ -107,17 +117,23 @@
           </p>
 
           <ul class="mb-0">
+
             {% for photo in photo_references %}
+
               <li>{{ photo|e }}</li>
+
             {% endfor %}
+
           </ul>
 
         {% endif %}
 
         {% if not photo_urls and not photo_references %}
+
           <p class="text-muted mb-0">
             No property photographs have been provided.
           </p>
+
         {% endif %}
 
       </div>
@@ -125,10 +141,10 @@
 
   </div>
 
-  <!-- Landlord contact -->
+  <!-- Landlord contact and message form -->
   <div class="col-12 col-md-4">
 
-    <div class="card">
+    <div class="card mb-4">
       <div class="card-body">
 
         <h2 class="h5">Contact Landlord</h2>
@@ -147,6 +163,75 @@
           Contact the landlord for additional information
           about this accommodation.
         </p>
+
+      </div>
+    </div>
+
+    <!-- Task #44: Student message submission -->
+    <div class="card">
+      <div class="card-body">
+
+        <h2 class="h5 mb-3">
+          Send Message to Landlord
+        </h2>
+
+        <p class="text-muted small">
+          Interested in this accommodation?
+          Send a message to the landlord to ask a question
+          or request more information.
+        </p>
+
+        <form
+          method="post"
+          action="{{ url_for('student_send_message_action', listing_id=listing.id) }}"
+        >
+
+          <!-- CSRF protection -->
+          <input
+            type="hidden"
+            name="csrf_token"
+            value="{{ csrf_token|e }}"
+          >
+
+          <div class="mb-3">
+
+            <label
+              for="message-body"
+              class="form-label"
+            >
+              Your Message
+            </label>
+
+            <textarea
+              id="message-body"
+              name="body"
+              class="form-control"
+              rows="6"
+              maxlength="2000"
+              minlength="1"
+              required
+              placeholder="Hello, I'm interested in this accommodation. Is it still available?"
+              aria-describedby="message-help"
+            ></textarea>
+
+            <div
+              id="message-help"
+              class="form-text"
+            >
+              Maximum 2000 characters.
+              Please do not include sensitive personal information.
+            </div>
+
+          </div>
+
+          <button
+            type="submit"
+            class="btn btn-primary w-100"
+          >
+            Send Message
+          </button>
+
+        </form>
 
       </div>
     </div>
