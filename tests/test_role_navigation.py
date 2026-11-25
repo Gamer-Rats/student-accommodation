@@ -76,7 +76,7 @@ def navigation_setup(monkeypatch):
     )
 
     monkeypatch.setattr(
-        admin_home,
+        admin_home.listings,
         "list_all",
         lambda status=None: [],
     )

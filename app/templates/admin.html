@@ -1,13 +1,31 @@
+
 {% extends "authenticated-base.html" %}
 {% block title %}Admin · NestLink{% endblock %}
 
 {% block subpage_content %}
-<h1>Admin</h1>
+
+<h1>Administrator Dashboard</h1>
+
 <p>
-  Review pending listings and verify or reject them through the API.
+  Review accommodation submissions and manage
+  landlord listing verification.
 </p>
+
 <div class="app-actions">
-  <a href="{{ url_for('swagger_ui_html') }}">Open API docs</a>
-  <a class="secondary" href="{{ url_for('admin_listings_view') }}">All listings</a>
+
+  <a
+    href="{{ url_for('admin_listings_view') }}"
+  >
+    Review Listings
+  </a>
+
+  <a
+    class="secondary"
+    href="{{ url_for('swagger_ui_html') }}"
+  >
+    Open API docs
+  </a>
+
 </div>
+
 {% endblock %}
