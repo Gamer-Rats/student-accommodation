@@ -504,7 +504,7 @@ def test_missing_csrf_is_rejected(admin_browser):
         data={"action": "verify"},
     )
 
-    assert response.status_code == 422
+    assert response.status_code == 403
 
     assert (
         admin_browser["saved"](listing_id)["status"]
