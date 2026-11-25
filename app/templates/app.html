@@ -3,6 +3,7 @@
 {% block title %}Home · NestLink{% endblock %}
 
 {% block subpage_content %}
+
 <h1>Housing home</h1>
 
 <p>
@@ -17,21 +18,32 @@
   </a>
 
   {% if user.role == 'student' %}
+
     <a
       class="secondary"
       href="{{ url_for('student_listings_view') }}"
     >
       Student listings
     </a>
+
   {% endif %}
 
   {% if user.role == 'landlord' %}
+
+    <a
+      class="secondary"
+      href="{{ url_for('landlord_listings_view') }}"
+    >
+      My Listings
+    </a>
+
     <a
       class="secondary"
       href="{{ url_for('landlord_rejections_view') }}"
     >
       Rejected Listings and Feedback
     </a>
+
   {% endif %}
 
 </div>

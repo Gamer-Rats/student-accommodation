@@ -40,7 +40,17 @@
       {% endif %}
 
       <!-- Landlord navigation -->
+      
+      <!-- Landlord navigation -->
       {% if user.role == 'landlord' %}
+        <a
+          href="{{ url_for('landlord_listings_view') }}"
+          class="{{ 'is-active' if current_page == 'landlord_listings_view' else '' }}"
+          {% if current_page == 'landlord_listings_view' %}aria-current="page"{% endif %}
+        >
+          My Listings
+        </a>
+
         <a
           href="{{ url_for('landlord_rejections_view') }}"
           class="{{ 'is-active' if current_page == 'landlord_rejections_view' else '' }}"
@@ -49,6 +59,7 @@
           Rejected listings
         </a>
       {% endif %}
+
 
       <!-- Administrator navigation -->
       {% if user.role == 'admin' %}
