@@ -42,6 +42,7 @@ from . import (
     user_home,
     landlord_edit,
     landlord_submit,
+    landlord_lifecycle,
     users,
     logout,
     server_config,
