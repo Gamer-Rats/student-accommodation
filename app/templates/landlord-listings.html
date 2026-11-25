@@ -217,6 +217,7 @@
 
             <td>
 
+              <!-- Pending and rejected listings can be edited -->
               {% if listing.status in ['pending', 'rejected'] %}
 
                 <a
@@ -232,23 +233,119 @@
 
                 </a>
 
+              <!-- Provisional listings await final approval -->
               {% elif listing.status == 'provisional' %}
 
                 <span class="text-muted small">
                   Awaiting verification
                 </span>
 
+              <!-- Approved listings can be activated -->
               {% elif listing.status == 'approved' %}
 
-                <span class="text-muted small">
-                  Awaiting activation
-                </span>
+                {% if listing.admin_hold or listing.requires_reverification %}
 
+                  <span class="text-danger small">
+                    Activation restricted by administrator
+                  </span>
+
+                {% else %}
+
+                  <form
+                    method="post"
+                    action="{{ url_for('landlord_lifecycle_action', listing_id=listing.id) }}"
+                  >
+
+                    <input
+                      type="hidden"
+                      name="csrf_token"
+                      value="{{ csrf_token|e }}"
+                    >
+
+                    <input
+                      type="hidden"
+                      name="action"
+                      value="activate"
+                    >
+
+                    <button
+                      type="submit"
+                      class="btn btn-sm btn-success"
+                    >
+                      Activate Listing
+                    </button>
+
+                  </form>
+
+                {% endif %}
+
+              <!-- Active listings can be deactivated -->
               {% elif listing.status == 'active' %}
 
-                <span class="text-muted small">
-                  Currently live
-                </span>
+                <form
+                  method="post"
+                  action="{{ url_for('landlord_lifecycle_action', listing_id=listing.id) }}"
+                >
+
+                  <input
+                    type="hidden"
+                    name="csrf_token"
+                    value="{{ csrf_token|e }}"
+                  >
+
+                  <input
+                    type="hidden"
+                    name="action"
+                    value="deactivate"
+                  >
+
+                  <button
+                    type="submit"
+                    class="btn btn-sm btn-outline-danger"
+                  >
+                    Deactivate Listing
+                  </button>
+
+                </form>
+
+              <!-- Inactive listings can be reactivated if permitted -->
+              {% elif listing.status == 'inactive' %}
+
+                {% if listing.admin_hold or listing.requires_reverification %}
+
+                  <span class="text-danger small">
+                    Reactivation blocked by administrator
+                  </span>
+
+                {% else %}
+
+                  <form
+                    method="post"
+                    action="{{ url_for('landlord_lifecycle_action', listing_id=listing.id) }}"
+                  >
+
+                    <input
+                      type="hidden"
+                      name="csrf_token"
+                      value="{{ csrf_token|e }}"
+                    >
+
+                    <input
+                      type="hidden"
+                      name="action"
+                      value="activate"
+                    >
+
+                    <button
+                      type="submit"
+                      class="btn btn-sm btn-success"
+                    >
+                      Reactivate Listing
+                    </button>
+
+                  </form>
+
+                {% endif %}
 
               {% else %}
 

@@ -1,3 +1,4 @@
+
 from fastapi import HTTPException, Request
 from urllib.parse import urlsplit
 from fastapi.responses import HTMLResponse
@@ -13,6 +14,7 @@ from app.services.location_rules import (
     ALLOWED_AREAS,
     LOCATION_ERROR,
 )
+from .landlord_lifecycle import get_lifecycle_csrf_token
 from . import router, templates
 
 
@@ -138,8 +140,6 @@ def landlord_rejections_view(
     )
 
 
-# Task #36 (Sprint 2): Landlord My Listings dashboard
-
 @router.get(
     "/app/landlord/listings",
     response_class=HTMLResponse,
@@ -186,11 +186,10 @@ def landlord_listings_view(
             "user": user,
             "listings": landlord_listings,
             "counts": counts,
+            "csrf_token": get_lifecycle_csrf_token(request),
         },
     )
 
-
-# Task #39 (Sprint 2): Student accommodation listing details page.
 
 @router.get(
     "/app/listings/{listing_id}",
@@ -225,14 +224,12 @@ def student_listing_details_view(
 
     listing = result["listing"]
 
-    # Split the amenities into individual items.
     amenities = [
         amenity.strip()
         for amenity in (listing.get("amenities") or "").split(",")
         if amenity.strip()
     ]
 
-    # Only use HTTP/HTTPS URLs as image sources.
     photo_urls = []
     photo_references = []
 
