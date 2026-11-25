@@ -6,28 +6,32 @@
 {% block subpage_content %}
 
 <div class="mb-4">
-  <h1>Submit Accommodation Listing</h1>
-
-  <p class="text-muted">
-    Enter your accommodation details below.
-    Your listing will be submitted for administrator
-    review before it can become available to students.
-  </p>
 
   <a
-    class="btn btn-outline-secondary"
+    class="btn btn-outline-secondary btn-sm mb-3"
     href="{{ url_for('landlord_listings_view') }}"
   >
     Back to My Listings
   </a>
+
+  <h1>Submit Accommodation Listing</h1>
+
+  <p class="text-muted">
+    Provide the details of your accommodation.
+    All new listings require administrator approval
+    before students can view them.
+  </p>
+
 </div>
 
 <div class="card mb-4">
+
   <div class="card-body">
 
     <form
       method="post"
       action="{{ url_for('landlord_submit_action') }}"
+      aria-labelledby="listing-form-heading"
     >
 
       <input
@@ -36,123 +40,193 @@
         value="{{ csrf_token|e }}"
       >
 
-      <!-- Listing title -->
-      <div class="mb-3">
-        <label for="title" class="form-label">
-          Listing Title
-        </label>
+      <h2 id="listing-form-heading" class="h5 mb-3">
+        Property Details
+      </h2>
 
-        <input
-          type="text"
-          class="form-control"
-          id="title"
-          name="title"
-          placeholder="e.g. Furnished Apartment Near UWI"
-          maxlength="200"
-          required
-        >
-      </div>
+      <p class="text-muted small">
+        Fields marked with an asterisk (*) are required.
+      </p>
 
-      <!-- Accommodation location -->
-      <div class="mb-3">
-        <label for="area" class="form-label">
-          Accommodation Location
-        </label>
+      <div class="row g-3">
 
-        <select
-          class="form-select"
-          id="area"
-          name="area"
-          required
-        >
-          <option value="" selected disabled>
-            Select a location
-          </option>
+        <!-- Listing title -->
+        <div class="col-12">
 
-          {% for area in areas %}
-            <option value="{{ area|e }}">
-              {{ area|replace('_', ' ')|title|e }}
+          <label for="title" class="form-label">
+            Listing Title
+            <span aria-hidden="true">*</span>
+          </label>
+
+          <input
+            type="text"
+            class="form-control"
+            id="title"
+            name="title"
+            placeholder="e.g. Furnished Apartment Near UWI"
+            maxlength="200"
+            autocomplete="off"
+            required
+            aria-required="true"
+            aria-describedby="title-help"
+          >
+
+          <div id="title-help" class="form-text">
+            Enter a descriptive title for your accommodation.
+          </div>
+
+        </div>
+
+        <!-- Accommodation location -->
+        <div class="col-12 col-md-6">
+
+          <label for="area" class="form-label">
+            Accommodation Location
+            <span aria-hidden="true">*</span>
+          </label>
+
+          <select
+            class="form-select"
+            id="area"
+            name="area"
+            aria-describedby="area-help"
+            aria-required="true"
+            required
+          >
+
+            <option value="" selected disabled>
+              Select a location
             </option>
-          {% endfor %}
-        </select>
 
-        <div class="form-text">
-          Listings are currently restricted to
-          St. Augustine and Mount Hope.
+            {% for area in areas %}
+
+              <option value="{{ area|e }}">
+                {{ area|replace('_', ' ')|title|e }}
+              </option>
+
+            {% endfor %}
+
+          </select>
+
+          <div id="area-help" class="form-text">
+            Available locations: St. Augustine and Mount Hope.
+          </div>
+
         </div>
-      </div>
 
-      <!-- Monthly rent -->
-      <div class="mb-3">
-        <label for="price" class="form-label">
-          Monthly Rent (TT$)
-        </label>
+        <!-- Monthly rent -->
+        <div class="col-12 col-md-6">
 
-        <input
-          type="number"
-          class="form-control"
-          id="price"
-          name="price"
-          min="1"
-          step="1"
-          placeholder="e.g. 2500"
-          required
-        >
-      </div>
+          <label for="price" class="form-label">
+            Monthly Rent (TT$)
+            <span aria-hidden="true">*</span>
+          </label>
 
-      <!-- Amenities -->
-      <div class="mb-3">
-        <label for="amenities" class="form-label">
-          Amenities
-        </label>
+          <input
+            type="number"
+            class="form-control"
+            id="price"
+            name="price"
+            min="1"
+            step="1"
+            inputmode="numeric"
+            placeholder="e.g. 2500"
+            required
+            aria-required="true"
+            aria-describedby="price-help"
+          >
 
-        <input
-          type="text"
-          class="form-control"
-          id="amenities"
-          name="amenities"
-          placeholder="e.g. wifi, parking, AC, furnished"
-        >
+          <div id="price-help" class="form-text">
+            Enter the monthly rental price in Trinidad and Tobago dollars.
+          </div>
 
-        <div class="form-text">
-          Separate amenities using commas.
         </div>
+
+        <!-- Amenities -->
+        <div class="col-12">
+
+          <label for="amenities" class="form-label">
+            Amenities
+          </label>
+
+          <input
+            type="text"
+            class="form-control"
+            id="amenities"
+            name="amenities"
+            placeholder="e.g. wifi, parking, AC, furnished"
+            aria-describedby="amenities-help"
+          >
+
+          <div id="amenities-help" class="form-text">
+            Separate amenities using commas.
+          </div>
+
+        </div>
+
       </div>
 
-      <!-- Contact phone -->
-      <div class="mb-3">
-        <label for="contact_phone" class="form-label">
-          Contact Phone Number
-        </label>
+      <hr class="my-4">
 
-        <input
-          type="tel"
-          class="form-control"
-          id="contact_phone"
-          name="contact_phone"
-          placeholder="e.g. 868-555-1234"
-          required
-        >
+      <h2 class="h5 mb-3">
+        Contact Information
+      </h2>
+
+      <div class="row g-3">
+
+        <!-- Contact phone -->
+        <div class="col-12 col-md-6">
+
+          <label for="contact_phone" class="form-label">
+            Contact Phone Number
+            <span aria-hidden="true">*</span>
+          </label>
+
+          <input
+            type="tel"
+            class="form-control"
+            id="contact_phone"
+            name="contact_phone"
+            autocomplete="tel"
+            placeholder="e.g. 868-555-1234"
+            required
+            aria-required="true"
+          >
+
+        </div>
+
+        <!-- Contact email -->
+        <div class="col-12 col-md-6">
+
+          <label for="contact_email" class="form-label">
+            Contact Email Address
+            <span aria-hidden="true">*</span>
+          </label>
+
+          <input
+            type="email"
+            class="form-control"
+            id="contact_email"
+            name="contact_email"
+            autocomplete="email"
+            placeholder="e.g. landlord@example.com"
+            required
+            aria-required="true"
+          >
+
+        </div>
+
       </div>
 
-      <!-- Contact email -->
-      <div class="mb-3">
-        <label for="contact_email" class="form-label">
-          Contact Email Address
-        </label>
+      <hr class="my-4">
 
-        <input
-          type="email"
-          class="form-control"
-          id="contact_email"
-          name="contact_email"
-          placeholder="e.g. landlord@example.com"
-          required
-        >
-      </div>
+      <h2 class="h5 mb-3">
+        Property Photos
+      </h2>
 
       <!-- Photos -->
-      <div class="mb-3">
+      <div class="mb-4">
+
         <label for="photos" class="form-label">
           Accommodation Photo URLs
         </label>
@@ -161,28 +235,38 @@
           class="form-control"
           id="photos"
           name="photos"
-          rows="3"
+          rows="4"
           placeholder="Paste photo URLs separated by commas"
+          aria-describedby="photos-help"
         ></textarea>
 
-        <div class="form-text">
-          Photo URLs are optional.
-          Direct image uploading is not supported yet.
+        <div id="photos-help" class="form-text">
+          Photos are optional. Enter URLs separated by
+          commas. Direct image uploading is not currently supported.
         </div>
+
       </div>
 
       <!-- Submission information -->
-      <div class="alert alert-info" role="status">
-        <strong>Important:</strong>
-        New listings are submitted with
-        <strong>Pending</strong> status.
+      <div
+        class="alert alert-info"
+        role="status"
+      >
 
-        A campus administrator must review and approve
-        your listing before you can activate it.
+        <strong>Before submitting:</strong>
+
+        <p class="mb-0 mt-2">
+          Your listing will initially have
+          <strong>Pending</strong> status.
+
+          A campus administrator must verify the
+          listing before you can activate it.
+        </p>
+
       </div>
 
       <!-- Form actions -->
-      <div class="d-flex flex-wrap gap-2">
+      <div class="d-flex flex-column flex-sm-row gap-2">
 
         <button
           type="submit"
@@ -203,6 +287,7 @@
     </form>
 
   </div>
+
 </div>
 
 {% endblock %}

@@ -1,0 +1,366 @@
+
+/*
+ * Task #51
+ * NestLink responsive layout and accessibility improvements.
+ *
+ * Extends app.css without replacing the existing theme.
+ */
+
+/* -----------------------------------------
+   Accessibility fundamentals
+------------------------------------------ */
+
+:focus-visible {
+  outline: 3px solid #2684e8;
+  outline-offset: 3px;
+}
+
+.app-topbar :focus-visible {
+  outline-color: #ffdf80;
+}
+
+.skip-link {
+  position: fixed;
+  top: -100px;
+  left: 1rem;
+  z-index: 2000;
+  padding: 0.8rem 1rem;
+  background: #ffffff;
+  color: #14241c;
+  border: 2px solid #14241c;
+  border-radius: 0.4rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.skip-link:focus,
+.skip-link:focus-visible {
+  top: 0.75rem;
+}
+
+#main-content:focus {
+  outline: none;
+}
+
+.app-shell {
+  min-width: 0;
+}
+
+.app-main {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.app-main p,
+.app-main li {
+  line-height: 1.6;
+}
+
+.app-main .form-label {
+  font-weight: 600;
+}
+
+.app-main .form-control,
+.app-main .form-select,
+.app-main textarea {
+  max-width: 100%;
+}
+
+.app-main .form-control:focus,
+.app-main .form-select:focus {
+  border-color: #2478bb;
+  box-shadow: 0 0 0 0.2rem rgba(36, 120, 187, 0.2);
+}
+
+.app-main .btn {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  white-space: normal;
+  text-align: center;
+}
+
+.app-main .btn-sm {
+  min-height: 40px;
+}
+
+.app-main .card {
+  min-width: 0;
+}
+
+.app-main .card-body {
+  min-width: 0;
+}
+
+.app-main .alert {
+  overflow-wrap: anywhere;
+}
+
+.app-main .table-responsive {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.app-main .table {
+  vertical-align: middle;
+}
+
+.app-main .table th {
+  white-space: nowrap;
+}
+
+/* -----------------------------------------
+   Responsive header and navigation
+------------------------------------------ */
+
+.app-topbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.75rem clamp(1rem, 3vw, 2rem);
+}
+
+.app-topbar .brand-wordmark {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.app-nav-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-left: auto;
+  min-height: 44px;
+  min-width: 90px;
+  padding: 0.45rem 0.8rem;
+  background: transparent;
+  color: #ffffff;
+  border: 1px solid #c5d8cc;
+  border-radius: 0.45rem;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.app-nav-toggle:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.app-nav-toggle[aria-expanded="true"] {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.app-nav-toggle:focus-visible {
+  outline: 3px solid #ffdf80;
+  outline-offset: 3px;
+}
+
+.app-nav-panel {
+  width: 100%;
+  min-width: 0;
+}
+
+.app-topnav {
+  display: flex;
+  align-items: stretch;
+  flex-direction: column;
+  gap: 0.15rem;
+  width: 100%;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.app-topnav a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0.65rem 0.85rem;
+  color: #e8f0eb;
+  border-radius: 0.35rem;
+  border-bottom: 0;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.app-topnav a:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
+  border-bottom-color: transparent;
+}
+
+.app-topnav a.is-active,
+.app-topnav a[aria-current="page"] {
+  color: #ffffff;
+  background: rgba(79, 143, 216, 0.28);
+  font-weight: 700;
+  border-bottom-color: transparent;
+}
+
+.app-topnav .app-user {
+  display: block;
+  padding: 0.75rem 0.85rem 0.4rem;
+  color: #cce6d0;
+  overflow-wrap: anywhere;
+}
+
+/* -----------------------------------------
+   Desktop navigation
+------------------------------------------ */
+
+@media (min-width: 1100px) {
+
+  .app-topbar {
+    flex-wrap: nowrap;
+  }
+
+  .app-nav-toggle {
+    display: none;
+  }
+
+  /*
+   * Keep desktop navigation visible regardless
+   * of the mobile collapse state.
+   */
+  .app-nav-panel {
+    display: block !important;
+    flex: 1 1 auto;
+    width: auto;
+  }
+
+  .app-topnav {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    width: auto;
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .app-topnav a {
+    padding: 0.55rem 0.7rem;
+    white-space: nowrap;
+  }
+
+  .app-topnav .app-user {
+    padding: 0.5rem 0.6rem;
+  }
+}
+
+/* -----------------------------------------
+   Tablets
+------------------------------------------ */
+
+@media (min-width: 600px) and (max-width: 1099px) {
+
+  .app-nav-panel {
+    flex-basis: 100%;
+  }
+
+  .app-topnav {
+    padding-bottom: 0.5rem;
+  }
+
+  .app-main {
+    padding: 1.75rem;
+  }
+}
+
+/* -----------------------------------------
+   Small mobile screens
+------------------------------------------ */
+
+@media (max-width: 599px) {
+
+  .app-topbar {
+    padding: 0.65rem 1rem;
+  }
+
+  .app-main {
+    padding: 1rem;
+  }
+
+  .app-main h1 {
+    font-size: clamp(1.6rem, 7vw, 2rem);
+  }
+
+  .app-main h2 {
+    overflow-wrap: anywhere;
+  }
+
+  .app-main .card-body {
+    padding: 1rem;
+  }
+
+  .app-main .d-flex {
+    min-width: 0;
+  }
+
+  .app-main .btn {
+    max-width: 100%;
+  }
+
+  .app-main .table-responsive {
+    margin-bottom: 1rem;
+  }
+
+  .app-main .table {
+    font-size: 0.9rem;
+  }
+
+  .app-main .form-control,
+  .app-main .form-select {
+    font-size: 1rem;
+  }
+
+  .app-main .alert {
+    padding: 0.85rem;
+  }
+}
+
+/* -----------------------------------------
+   Very narrow screens
+------------------------------------------ */
+
+@media (max-width: 360px) {
+
+  .app-topbar {
+    gap: 0.4rem;
+  }
+
+  .app-nav-toggle {
+    min-width: 80px;
+  }
+
+  .app-main {
+    padding: 0.75rem;
+  }
+
+  .app-main .card-body {
+    padding: 0.85rem;
+  }
+}
+
+/* -----------------------------------------
+   Motion preferences
+------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+
+  html {
+    scroll-behavior: auto;
+  }
+
+  .app-shell *,
+  .app-shell *::before,
+  .app-shell *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

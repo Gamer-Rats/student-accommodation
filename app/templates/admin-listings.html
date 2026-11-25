@@ -1,391 +1,512 @@
 
 {% extends "authenticated-base.html" %}
+
 {% block title %}Review Listings · NestLink{% endblock %}
 
 {% block subpage_content %}
 
 <div class="mb-4">
+
   <h1>Manage Accommodation Listings</h1>
 
   <p class="text-muted">
-    Review submissions, provisionally accept or verify
-    listings, reject invalid submissions, deactivate
-    active properties, and manage administrative holds.
+    Review submissions, verify or reject properties,
+    manage listing availability, and control
+    administrative holds and reverification.
   </p>
+
 </div>
 
 <!-- Status filter -->
-<form
-  method="get"
-  action="{{ url_for('admin_listings_view') }}"
-  class="d-flex flex-wrap align-items-end gap-2 mb-4"
->
-  <div>
-    <label for="status" class="form-label">
-      Filter by Status
-    </label>
-
-    <select class="form-select" id="status" name="status">
-      <option value="">All statuses</option>
-
-      {% for state in states %}
-        <option
-          value="{{ state|e }}"
-          {% if state == selected_status %}selected{% endif %}
-        >
-          {{ state|capitalize|e }}
-        </option>
-      {% endfor %}
-    </select>
-  </div>
-
-  <button class="btn btn-primary" type="submit">
-    Filter
-  </button>
-</form>
-
-{% if listings %}
-
-<div class="table-responsive">
-  <table class="table table-hover align-middle">
-
-    <thead>
-      <tr>
-        <th scope="col">ID</th>
-        <th scope="col">Listing</th>
-        <th scope="col">Area</th>
-        <th scope="col">Price</th>
-        <th scope="col">Status</th>
-        <th scope="col">Administrator Actions</th>
-      </tr>
-    </thead>
-
-    <tbody>
-      {% for listing in listings %}
-
-      <tr>
-        <td>{{ listing.id }}</td>
-
-        <td>
-          <strong>{{ listing.title|e }}</strong>
-          <div class="text-muted small">
-            Landlord ID: {{ listing.landlord_id }}
-          </div>
-        </td>
-
-        <td>
-          {{ listing.area|replace('_', ' ')|title|e }}
-        </td>
-
-        <td>
-          TT${{ "{:,}".format(listing.price) }}
-        </td>
-
-        <td>
-
-          {% if listing.status == 'pending' %}
-            <span class="badge bg-warning text-dark">
-              Pending
-            </span>
-
-          {% elif listing.status == 'provisional' %}
-            <span class="badge bg-info text-dark">
-              Provisional
-            </span>
-
-          {% elif listing.status == 'approved' %}
-            <span class="badge bg-primary">
-              Approved
-            </span>
-
-          {% elif listing.status == 'active' %}
-            <span class="badge bg-success">
-              Active
-            </span>
-
-          {% elif listing.status == 'inactive' %}
-            <span class="badge bg-secondary">
-              Inactive
-            </span>
-
-          {% elif listing.status == 'rejected' %}
-            <span class="badge bg-danger">
-              Rejected
-            </span>
-
-          {% else %}
-            <span class="badge bg-secondary">
-              {{ listing.status|capitalize|e }}
-            </span>
-          {% endif %}
-
-          {% if listing.admin_hold %}
-            <div class="small text-danger mt-1">
-              On administrative hold
-            </div>
-          {% endif %}
-
-          {% if listing.requires_reverification %}
-            <div class="small mt-1">
-              Requires reverification
-            </div>
-          {% endif %}
-
-          {% if listing.status == 'rejected' %}
-            <div class="small mt-2">
-              <strong>Rejection reason:</strong>
-              {{ listing.review_feedback|default("No reason recorded.", true)|e }}
-            </div>
-          {% endif %}
-
-        </td>
-
-        <td>
-
-          <!-- Verify pending or provisional listings -->
-          {% if listing.status in ['pending', 'provisional'] %}
-
-            <form
-              method="post"
-              action="{{ url_for('admin_review_action', listing_id=listing.id) }}"
-              class="mb-2"
-            >
-              <input
-                type="hidden"
-                name="csrf_token"
-                value="{{ csrf_token|e }}"
-              >
-
-              <input
-                type="hidden"
-                name="action"
-                value="verify"
-              >
-
-              <button
-                type="submit"
-                class="btn btn-sm btn-success"
-              >
-                Verify Listing
-              </button>
-            </form>
-
-          {% endif %}
-
-          <!-- Provisionally accept pending listings -->
-          {% if listing.status == 'pending' %}
-
-            <form
-              method="post"
-              action="{{ url_for('admin_review_action', listing_id=listing.id) }}"
-              class="mb-2"
-            >
-              <input
-                type="hidden"
-                name="csrf_token"
-                value="{{ csrf_token|e }}"
-              >
-
-              <input
-                type="hidden"
-                name="action"
-                value="provisionally_accept"
-              >
-
-              <button
-                type="submit"
-                class="btn btn-sm btn-outline-primary"
-              >
-                Provisionally Accept
-              </button>
-            </form>
-
-          {% endif %}
-
-          <!-- Reject pending listings with feedback -->
-          {% if listing.status == 'pending' %}
-
-            <form
-              method="post"
-              action="{{ url_for('admin_review_action', listing_id=listing.id) }}"
-              class="mb-2"
-            >
-              <input
-                type="hidden"
-                name="csrf_token"
-                value="{{ csrf_token|e }}"
-              >
-
-              <input
-                type="hidden"
-                name="action"
-                value="reject"
-              >
-
-              <label
-                for="rejection-reason-{{ listing.id }}"
-                class="form-label small fw-semibold"
-              >
-                Rejection Reason
-              </label>
-
-              <textarea
-                id="rejection-reason-{{ listing.id }}"
-                name="review_feedback"
-                class="form-control form-control-sm mb-2"
-                rows="3"
-                maxlength="1000"
-                placeholder="Explain why this listing is rejected"
-                required
-              ></textarea>
-
-              <button
-                type="submit"
-                class="btn btn-sm btn-outline-danger"
-              >
-                Reject Listing
-              </button>
-            </form>
-
-          {% endif %}
-
-          <!-- Force deactivate active listings -->
-          {% if listing.status == 'active' %}
-
-            <form
-              method="post"
-              action="{{ url_for('admin_review_action', listing_id=listing.id) }}"
-              class="mb-2"
-            >
-              <input
-                type="hidden"
-                name="csrf_token"
-                value="{{ csrf_token|e }}"
-              >
-
-              <input
-                type="hidden"
-                name="action"
-                value="force_deactivate"
-              >
-
-              <button
-                type="submit"
-                class="btn btn-sm btn-danger"
-                onclick="return confirm('Force deactivate this listing and place it on administrative hold?');"
-              >
-                Force Deactivate
-              </button>
-            </form>
-
-          {% endif %}
-
-          <!-- Task #49: Release administrative hold -->
-          {% if listing.status == 'inactive' and listing.admin_hold %}
-
-            <form
-              method="post"
-              action="{{ url_for('admin_review_action', listing_id=listing.id) }}"
-              class="mb-2"
-            >
-              <input
-                type="hidden"
-                name="csrf_token"
-                value="{{ csrf_token|e }}"
-              >
-
-              <input
-                type="hidden"
-                name="action"
-                value="release_admin_hold"
-              >
-
-              <button
-                type="submit"
-                class="btn btn-sm btn-outline-warning"
-                onclick="return confirm('Release the administrative hold? The listing will still require reverification.');"
-              >
-                Release Admin Hold
-              </button>
-            </form>
-
-            <p class="text-muted small mb-0">
-              This property cannot be reactivated
-              while the hold remains in place.
-            </p>
-
-          <!-- Task #49: Complete reverification -->
-          {% elif listing.status == 'inactive' and listing.requires_reverification %}
-
-            <form
-              method="post"
-              action="{{ url_for('admin_review_action', listing_id=listing.id) }}"
-              class="mb-2"
-            >
-              <input
-                type="hidden"
-                name="csrf_token"
-                value="{{ csrf_token|e }}"
-              >
-
-              <input
-                type="hidden"
-                name="action"
-                value="complete_reverification"
-              >
-
-              <button
-                type="submit"
-                class="btn btn-sm btn-primary"
-                onclick="return confirm('Confirm that you have reviewed the listing and approved its reverification?');"
-              >
-                Complete Reverification
-              </button>
-            </form>
-
-            <p class="text-muted small mb-0">
-              The listing will remain inactive until
-              its landlord chooses to reactivate it.
-            </p>
-
-          {% endif %}
-
-          <!-- Existing informational messages -->
-          {% if listing.status == 'rejected' %}
-
-            <span class="text-muted small">
-              Waiting for landlord to resubmit
-            </span>
-
-          {% elif listing.status == 'approved' %}
-
-            <span class="text-muted small">
-              Awaiting landlord activation
-            </span>
-
-          {% elif listing.status == 'inactive' and not listing.admin_hold and not listing.requires_reverification %}
-
-            <span class="text-muted small">
-              Currently inactive
-            </span>
-
-          {% endif %}
-
-        </td>
-      </tr>
-
-      {% endfor %}
-    </tbody>
-
-  </table>
-</div>
-
-{% else %}
-
-  <div class="alert alert-info">
-    No listings match the selected filter.
-  </div>
-
-{% endif %}
+<section aria-labelledby="admin-filter-heading" class="mb-4">
+
+  <h2 id="admin-filter-heading" class="h5">
+    Filter Listings
+  </h2>
+
+  <form
+    method="get"
+    action="{{ url_for('admin_listings_view') }}"
+    class="row g-3 align-items-end"
+    role="search"
+    aria-label="Filter accommodation listings by status"
+  >
+
+    <div class="col-12 col-sm-8 col-md-5">
+
+      <label for="status" class="form-label">
+        Filter by Status
+      </label>
+
+      <select class="form-select" id="status" name="status">
+
+        <option value="">All statuses</option>
+
+        {% for state in states %}
+
+          <option
+            value="{{ state|e }}"
+            {% if state == selected_status %}selected{% endif %}
+          >
+            {{ state|capitalize|e }}
+          </option>
+
+        {% endfor %}
+
+      </select>
+
+    </div>
+
+    <div class="col-12 col-sm-4 col-md-3">
+
+      <button
+        class="btn btn-primary w-100"
+        type="submit"
+      >
+        Filter
+      </button>
+
+    </div>
+
+  </form>
+
+</section>
+
+<!-- Listing results -->
+<section aria-labelledby="admin-results-heading">
+
+  <h2 id="admin-results-heading" class="h5 mb-3">
+    Accommodation Listings
+  </h2>
+
+  {% if listings %}
+
+    <p class="text-muted small">
+      {{ listings|length }}
+      {{ 'listing' if listings|length == 1 else 'listings' }}
+      displayed.
+
+      On smaller screens, scroll horizontally within
+      the table to view all administrator actions.
+    </p>
+
+    <div
+      class="table-responsive"
+      role="region"
+      aria-label="Accommodation listings and administrator review actions"
+      tabindex="0"
+    >
+
+      <table
+        class="table table-hover align-middle"
+        style="min-width: 760px;"
+      >
+
+        <caption class="visually-hidden">
+          Accommodation listings, their review statuses,
+          and available administrator actions.
+        </caption>
+
+        <thead>
+
+          <tr>
+
+            <th scope="col">ID</th>
+
+            <th scope="col">Listing</th>
+
+            <th scope="col">Area</th>
+
+            <th scope="col">Price</th>
+
+            <th scope="col">Status</th>
+
+            <th scope="col">Administrator Actions</th>
+
+          </tr>
+
+        </thead>
+
+        <tbody>
+
+          {% for listing in listings %}
+
+            <tr>
+
+              <td>{{ listing.id }}</td>
+
+              <td>
+
+                <strong>{{ listing.title|e }}</strong>
+
+                <div class="text-muted small">
+                  Landlord ID: {{ listing.landlord_id }}
+                </div>
+
+              </td>
+
+              <td>
+                {{ listing.area|replace('_', ' ')|title|e }}
+              </td>
+
+              <td class="text-nowrap">
+                TT${{ "{:,}".format(listing.price) }}
+              </td>
+
+              <!-- Current listing status -->
+              <td>
+
+                {% if listing.status == 'pending' %}
+
+                  <span class="badge bg-warning text-dark">
+                    Pending
+                  </span>
+
+                {% elif listing.status == 'provisional' %}
+
+                  <span class="badge bg-info text-dark">
+                    Provisional
+                  </span>
+
+                {% elif listing.status == 'approved' %}
+
+                  <span class="badge bg-primary">
+                    Approved
+                  </span>
+
+                {% elif listing.status == 'active' %}
+
+                  <span class="badge bg-success">
+                    Active
+                  </span>
+
+                {% elif listing.status == 'inactive' %}
+
+                  <span class="badge bg-secondary">
+                    Inactive
+                  </span>
+
+                {% elif listing.status == 'rejected' %}
+
+                  <span class="badge bg-danger">
+                    Rejected
+                  </span>
+
+                {% else %}
+
+                  <span class="badge bg-secondary">
+                    {{ listing.status|capitalize|e }}
+                  </span>
+
+                {% endif %}
+
+                <!-- Administrative restrictions -->
+                {% if listing.admin_hold %}
+
+                  <div class="small text-danger mt-1">
+                    On administrative hold
+                  </div>
+
+                {% endif %}
+
+                {% if listing.requires_reverification %}
+
+                  <div class="small mt-1">
+                    Requires reverification
+                  </div>
+
+                {% endif %}
+
+                <!-- Rejection feedback -->
+                {% if listing.status == 'rejected' %}
+
+                  <div class="small mt-2">
+
+                    <strong>Rejection reason:</strong>
+
+                    {{ listing.review_feedback|default("No reason recorded.", true)|e }}
+
+                  </div>
+
+                {% endif %}
+
+              </td>
+
+              <!-- Administrator actions -->
+              <td>
+
+                <!-- Verify -->
+                {% if listing.status in ['pending', 'provisional'] %}
+
+                  <form
+                    method="post"
+                    action="{{ url_for('admin_review_action', listing_id=listing.id) }}"
+                    class="mb-2"
+                    aria-label="Verify listing {{ listing.title|e }}"
+                  >
+
+                    <input
+                      type="hidden"
+                      name="csrf_token"
+                      value="{{ csrf_token|e }}"
+                    >
+
+                    <input
+                      type="hidden"
+                      name="action"
+                      value="verify"
+                    >
+
+                    <button
+                      type="submit"
+                      class="btn btn-sm btn-success"
+                    >
+                      Verify Listing
+                    </button>
+
+                  </form>
+
+                {% endif %}
+
+                <!-- Provisional acceptance -->
+                {% if listing.status == 'pending' %}
+
+                  <form
+                    method="post"
+                    action="{{ url_for('admin_review_action', listing_id=listing.id) }}"
+                    class="mb-2"
+                    aria-label="Provisionally accept listing {{ listing.title|e }}"
+                  >
+
+                    <input
+                      type="hidden"
+                      name="csrf_token"
+                      value="{{ csrf_token|e }}"
+                    >
+
+                    <input
+                      type="hidden"
+                      name="action"
+                      value="provisionally_accept"
+                    >
+
+                    <button
+                      type="submit"
+                      class="btn btn-sm btn-outline-primary"
+                    >
+                      Provisionally Accept
+                    </button>
+
+                  </form>
+
+                {% endif %}
+
+                <!-- Reject with feedback -->
+                {% if listing.status == 'pending' %}
+
+                  <form
+                    method="post"
+                    action="{{ url_for('admin_review_action', listing_id=listing.id) }}"
+                    class="mb-2"
+                  >
+
+                    <input
+                      type="hidden"
+                      name="csrf_token"
+                      value="{{ csrf_token|e }}"
+                    >
+
+                    <input
+                      type="hidden"
+                      name="action"
+                      value="reject"
+                    >
+
+                    <label
+                      for="rejection-reason-{{ listing.id }}"
+                      class="form-label small fw-semibold"
+                    >
+                      Rejection Reason
+                    </label>
+
+                    <textarea
+                      id="rejection-reason-{{ listing.id }}"
+                      name="review_feedback"
+                      class="form-control form-control-sm mb-2"
+                      rows="3"
+                      maxlength="1000"
+                      placeholder="Explain why this listing is rejected"
+                      aria-describedby="rejection-help-{{ listing.id }}"
+                      required
+                    ></textarea>
+
+                    <div
+                      id="rejection-help-{{ listing.id }}"
+                      class="form-text mb-2"
+                    >
+                      Explain the changes required
+                      before the landlord resubmits.
+                    </div>
+
+                    <button
+                      type="submit"
+                      class="btn btn-sm btn-outline-danger"
+                    >
+                      Reject Listing
+                    </button>
+
+                  </form>
+
+                {% endif %}
+
+                <!-- Force deactivate -->
+                {% if listing.status == 'active' %}
+
+                  <form
+                    method="post"
+                    action="{{ url_for('admin_review_action', listing_id=listing.id) }}"
+                    class="mb-2"
+                  >
+
+                    <input
+                      type="hidden"
+                      name="csrf_token"
+                      value="{{ csrf_token|e }}"
+                    >
+
+                    <input
+                      type="hidden"
+                      name="action"
+                      value="force_deactivate"
+                    >
+
+                    <button
+                      type="submit"
+                      class="btn btn-sm btn-danger"
+                      onclick="return confirm('Force deactivate this listing and place it on administrative hold?');"
+                    >
+                      Force Deactivate
+                    </button>
+
+                  </form>
+
+                {% endif %}
+
+                <!-- Release administrator hold -->
+                {% if listing.status == 'inactive' and listing.admin_hold %}
+
+                  <form
+                    method="post"
+                    action="{{ url_for('admin_review_action', listing_id=listing.id) }}"
+                    class="mb-2"
+                  >
+
+                    <input
+                      type="hidden"
+                      name="csrf_token"
+                      value="{{ csrf_token|e }}"
+                    >
+
+                    <input
+                      type="hidden"
+                      name="action"
+                      value="release_admin_hold"
+                    >
+
+                    <button
+                      type="submit"
+                      class="btn btn-sm btn-outline-warning"
+                      onclick="return confirm('Release the administrative hold? The listing will still require reverification.');"
+                    >
+                      Release Admin Hold
+                    </button>
+
+                  </form>
+
+                  <p class="text-muted small mb-0">
+                    This property cannot be reactivated
+                    while the hold remains in place.
+                  </p>
+
+                <!-- Complete reverification -->
+                {% elif listing.status == 'inactive' and listing.requires_reverification %}
+
+                  <form
+                    method="post"
+                    action="{{ url_for('admin_review_action', listing_id=listing.id) }}"
+                    class="mb-2"
+                  >
+
+                    <input
+                      type="hidden"
+                      name="csrf_token"
+                      value="{{ csrf_token|e }}"
+                    >
+
+                    <input
+                      type="hidden"
+                      name="action"
+                      value="complete_reverification"
+                    >
+
+                    <button
+                      type="submit"
+                      class="btn btn-sm btn-primary"
+                      onclick="return confirm('Confirm that you have reviewed the listing and approved its reverification?');"
+                    >
+                      Complete Reverification
+                    </button>
+
+                  </form>
+
+                  <p class="text-muted small mb-0">
+                    The listing remains inactive until
+                    its landlord chooses to reactivate it.
+                  </p>
+
+                {% endif %}
+
+                <!-- Informational statuses -->
+                {% if listing.status == 'rejected' %}
+
+                  <span class="text-muted small">
+                    Waiting for landlord to resubmit
+                  </span>
+
+                {% elif listing.status == 'approved' %}
+
+                  <span class="text-muted small">
+                    Awaiting landlord activation
+                  </span>
+
+                {% elif listing.status == 'inactive' and not listing.admin_hold and not listing.requires_reverification %}
+
+                  <span class="text-muted small">
+                    Currently inactive
+                  </span>
+
+                {% endif %}
+
+              </td>
+
+            </tr>
+
+          {% endfor %}
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+  {% else %}
+
+    <div class="alert alert-info" role="status">
+      No listings match the selected filter.
+    </div>
+
+  {% endif %}
+
+</section>
 
 {% endblock %}
