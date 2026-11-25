@@ -15,9 +15,16 @@ from . import router, templates
 
 ADMIN_REVIEW_CSRF_KEY = "admin_review_csrf"
 
+ADMIN_REVIEW_ACTIONS = {
+    "verify",
+    "reject",
+    "provisionally_accept",
+    "force_deactivate",
+}
+
 
 def _get_review_token(request: Request) -> str:
-    """Create or reuse the security token for admin forms."""
+    """Create or reuse a CSRF token for admin forms."""
 
     token = request.session.get(ADMIN_REVIEW_CSRF_KEY)
 
@@ -32,7 +39,7 @@ def _check_review_token(
     request: Request,
     submitted_token: str,
 ) -> None:
-    """Reject browser form submissions with invalid tokens."""
+    """Reject requests with invalid security tokens."""
 
     expected = request.session.get(ADMIN_REVIEW_CSRF_KEY)
 
@@ -98,12 +105,11 @@ def admin_review_action(
     csrf_token: str = Form(),
     review_feedback: str = Form(default=""),
 ):
-    """Verify or reject a listing through an admin-only form."""
+    """Apply administrator actions through the listing lifecycle."""
 
     _check_review_token(request, csrf_token)
 
-    # Task #37 supports only these administrator actions.
-    if action not in {"verify", "reject"}:
+    if action not in ADMIN_REVIEW_ACTIONS:
         raise HTTPException(
             status_code=400,
             detail="Invalid review action",
@@ -134,11 +140,27 @@ def admin_review_action(
             "success",
         )
 
-    else:
+    elif action == "reject":
         flash(
             request,
             "Listing rejected. The landlord can now view "
             "the administrator's feedback.",
+            "success",
+        )
+
+    elif action == "provisionally_accept":
+        flash(
+            request,
+            "Listing provisionally accepted. "
+            "Final administrator verification is still required.",
+            "success",
+        )
+
+    elif action == "force_deactivate":
+        flash(
+            request,
+            "Listing forcibly deactivated and placed "
+            "on administrative hold.",
             "success",
         )
 
