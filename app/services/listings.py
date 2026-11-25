@@ -380,3 +380,152 @@ def send_message(
             "ok": True,
             "message_id": message.id,
         }
+
+
+# Task #31: Ownership-protected listing editing.
+# Only Pending and Rejected listings may be edited.
+# Reviewed or publicly visible listings must not be changed
+# without a separate administrator re-verification workflow.
+
+EDITABLE_STATUSES = {"pending", "rejected"}
+
+EDITABLE_FIELDS = {
+    "title",
+    "area",
+    "price",
+    "amenities",
+    "contact_phone",
+    "contact_email",
+    "photos",
+}
+
+def update_listing(actor_id: int, listing_id: int, **changes: Any) -> dict[str, Any]:
+    """Edit a landlord's listing without bypassing lifecycle rules."""
+
+    actor = get_user(actor_id)
+    if not actor or actor["role"] != "landlord":
+        return {"ok": False, "error": "landlords only"}
+
+    if not changes:
+        return {"ok": False, "error": "no fields supplied"}
+
+    forbidden = set(changes) - EDITABLE_FIELDS
+
+    if forbidden:
+        return {
+            "ok": False,
+            "error": "fields cannot be edited: "
+            + ", ".join(sorted(forbidden)),
+        }
+
+    with Session(engine) as session:
+        listing = session.get(Listing, listing_id)
+
+        if listing is None:
+            return {
+                "ok": False,
+                "error": "listing not found",
+            }
+
+        if listing.landlord_id != actor_id:
+            return {
+                "ok": False,
+                "error": "not listing owner",
+            }
+
+        if listing.status not in EDITABLE_STATUSES:
+            return {
+                "ok": False,
+                "error": (
+                    "Only pending or rejected listings may be edited; "
+                    "other listings require a separate review process"
+                ),
+            }
+
+        # Validate all fields before modifying the database row.
+        cleaned: dict[str, Any] = {}
+
+        for field, value in changes.items():
+
+            if field == "price":
+                if type(value) is not int or value <= 0:
+                    return {
+                        "ok": False,
+                        "error": "price must be a positive integer",
+                    }
+
+                cleaned[field] = value
+
+            elif field == "area":
+                if not isinstance(value, str):
+                    return {
+                        "ok": False,
+                        "error": LOCATION_ERROR,
+                    }
+
+                area = normalize_area(value)
+
+                if area not in ALLOWED_AREAS:
+                    return {
+                        "ok": False,
+                        "error": LOCATION_ERROR,
+                    }
+
+                cleaned[field] = area
+
+            else:
+                if not isinstance(value, str):
+                    return {
+                        "ok": False,
+                        "error": f"{field} must be text",
+                    }
+
+                value = value.strip()
+
+                if field in {
+                    "title",
+                    "contact_phone",
+                    "contact_email",
+                } and not value:
+                    return {
+                        "ok": False,
+                        "error": f"{field} is required",
+                    }
+
+                if field == "contact_email":
+                    from pydantic import (
+                        EmailStr,
+                        TypeAdapter,
+                        ValidationError,
+                    )
+
+                    try:
+                        value = str(
+                            TypeAdapter(EmailStr).validate_python(value)
+                        )
+                    except ValidationError:
+                        return {
+                            "ok": False,
+                            "error": "invalid contact email",
+                        }
+
+                if field == "title" and len(value) > 200:
+                    return {
+                        "ok": False,
+                        "error": "title is too long",
+                    }
+
+                cleaned[field] = value
+
+        # All checks passed. Now update the listing.
+        for field, value in cleaned.items():
+            setattr(listing, field, value)
+
+        session.add(listing)
+        session.commit()
+        session.refresh(listing)
+
+        return {
+            "ok": True,
+            "listing": listing.model_dump(),
+        }
